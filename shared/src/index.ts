@@ -159,6 +159,68 @@ export interface Health {
   version: string;
 }
 
+// ---------- Lecture ----------
+
+/** Ce que le navigateur sait décoder (mesuré côté client avec MediaSource.isTypeSupported). */
+export interface ClientCaps {
+  mse: boolean;          // Media Source Extensions (hls.js)
+  nativeHls: boolean;    // Safari / iOS
+  video: { h264: boolean; hevc: boolean; av1: boolean; vp9: boolean };
+  audio: { aac: boolean; ac3: boolean; eac3: boolean; opus: boolean; flac: boolean; mp3: boolean };
+  hdr: boolean;          // écran HDR (matchMedia dynamic-range: high)
+  maxAudioChannels: number;
+}
+
+export type Quality = 'original' | '8M' | '4M';
+export type PlaybackMode = 'direct' | 'remux' | 'transcode';
+
+export interface PlaybackRequest {
+  movieId: number;
+  start: number;              // secondes
+  audioIndex?: number | null; // index ffprobe de la piste audio
+  burnSubtitleId?: number | null; // sous-titre image à incruster
+  quality: Quality;
+  caps: ClientCaps;
+  replaceSessionId?: string | null;
+}
+
+export interface PlaybackPlan {
+  sessionId: string;
+  mode: PlaybackMode;
+  url: string;
+  /** Position réelle (s) à laquelle commence le flux ; temps du film = offset + video.currentTime */
+  offset: number;
+  duration: number;
+  reasons: string[];
+  video: string;              // ex. « hevc → copie », « h264 (AMF) »
+  audio: string;              // ex. « dts 5.1 → aac 5.1 »
+  encoder: string | null;
+}
+
+export interface PlaybackPing {
+  sessionId: string;
+  position: number;           // temps du film (s)
+  paused: boolean;
+}
+
+export interface PingResponse {
+  /** Plage du film disponible sans relancer le flux (temps du film). */
+  availableFrom: number;
+  availableTo: number;
+  finished: boolean;
+  watched: boolean;
+}
+
+export interface TrickplayInfo {
+  interval: number;           // secondes entre deux vignettes
+  width: number;
+  height: number;
+  columns: number;
+  rows: number;
+  count: number;
+  sheets: string[];           // URLs des planches
+}
+
 export interface Settings {
   libraryDirs: string[];
   tmdbLanguage: string;

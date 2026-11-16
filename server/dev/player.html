@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Banc d'essai — lecture</title>
+<style>
+  body { background:#0D0B09; color:#EDE6D6; font:14px/1.5 system-ui, sans-serif; margin:24px; }
+  select, button, input { font:inherit; background:#1F1B16; color:#EDE6D6; border:1px solid #3a342c; padding:6px 10px; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin:8px 0; }
+  .stage { position:relative; width:960px; max-width:100%; background:#000; aspect-ratio:16/9; }
+  video { width:100%; height:100%; display:block; }
+  .subs { position:absolute; left:0; right:0; bottom:7%; text-align:center; pointer-events:none; font-size:28px; text-shadow:0 0 4px #000, 0 2px 3px #000; white-space:pre-line; }
+  pre { background:#16130F; padding:12px; font:12px/1.5 ui-monospace, monospace; color:#A39A88; max-width:960px; white-space:pre-wrap; }
+  input[type=range] { width:960px; max-width:100%; }
+</style>
+</head>
+<body>
+<h1 style="font-weight:400">Banc d'essai de lecture</h1>
+<div class="row">
+  <select id="movie"></select>
+  <select id="audio"></select>
+  <select id="sub"><option value="">Sans sous-titres</option></select>
+  <select id="quality"><option value="original">Original</option><option value="8M">8 Mb/s</option><option value="4M">4 Mb/s</option></select>
+  <button id="play">Projeter</button>
+</div>
+<div class="stage"><video id="v" playsinline></video><div class="subs" id="subs"></div></div>
+<div class="row"><input type="range" id="seek" min="0" max="1000" value="0"></div>
+<div class="row">
+  <button data-j="-10">−10 s</button><button id="pp">Lecture/Pause</button><button data-j="10">+10 s</button><button data-j="600">+10 min</button>
+  <span id="time">0:00</span> · décalage sous-titres <button data-o="-0.1">−0,1</button><span id="off">0,0 s</span><button data-o="0.1">+0,1</button>
+</div>
+<pre id="log"></pre>
+<script src="/dev/hls.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const v = $('v');
+const log = (m) => { $('log').textContent = `[${new Date().toLocaleTimeString()}] ${m}\n` + $('log').textContent; };
+
+function caps() {
+  const ms = window.MediaSource || window.ManagedMediaSource;
+  const t = (c) => !!ms && ms.isTypeSupported(c);
+  return {
+    mse: !!ms,
+    nativeHls: !!v.canPlayType('application/vnd.apple.mpegurl'),
+    video: {
+      h264: t('video/mp4; codecs="avc1.640029"'),
+      hevc: t('video/mp4; codecs="hvc1.2.4.L153.B0"') || t('video/mp4; codecs="hev1.2.4.L153.B0"'),
+      av1: t('video/mp4; codecs="av01.0.08M.10"'),
+      vp9: t('video/mp4; codecs="vp09.00.40.08"'),
+    },
+    audio: {
+      aac: t('audio/mp4; codecs="mp4a.40.2"'), ac3: t('audio/mp4; codecs="ac-3"'), eac3: t('audio/mp4; codecs="ec-3"'),
+      opus: t('audio/mp4; codecs="opus"'), flac: t('audio/mp4; codecs="flac"'), mp3: t('audio/mpeg'),
+    },
+    hdr: matchMedia('(dynamic-range: high)').matches,
+    maxAudioChannels: 6,
+  };
+}
+
+let movie = null, plan = null, hls = null, cues = [], subOffset = 0, avail = { from: 0, to: 0 }, pingTimer = null;
+const now = () => (plan ? plan.offset + v.currentTime : 0);
+const fmt = (s) => { s = Math.max(0, Math.floor(s)); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0'); };
+
+async function loadMovies() {
+  const list = await (await fetch('/api/movies')).json();
+  $('movie').innerHTML = list.map((m) => `<option value="${m.id}">${m.title} (${m.year ?? '?'})</option>`).join('');
+  const q = new URLSearchParams(location.search).get('id');
+  if (q) $('movie').value = q;
+  await selectMovie();
+}
+async function selectMovie() {
+  movie = await (await fetch('/api/movies/' + $('movie').value)).json();
+  $('audio').innerHTML = (movie.media?.audio ?? []).map((a) => `<option value="${a.index}">${a.language ?? '?'} · ${a.codec} ${a.channels}ch</option>`).join('');
+  $('sub').innerHTML = '<option value="">Sans sous-titres</option>' + movie.subtitles.map((s) => `<option value="${s.id}">${s.label} — ${s.source === 'external' ? 'externe' : 'intégré'}${s.textBased ? '' : ' (image, incrustation)'}</option>`).join('');
+  subOffset = movie.user.subtitleOffset; $('off').textContent = subOffset.toFixed(1).replace('.', ',') + ' s';
+}
+
+async function start(at) {
+  const sub = movie.subtitles.find((s) => String(s.id) === $('sub').value);
+  const body = {
+    movieId: movie.id, start: at, audioIndex: Number($('audio').value), quality: $('quality').value, caps: caps(),
+    burnSubtitleId: sub && !sub.textBased ? sub.id : null, replaceSessionId: plan?.sessionId ?? null,
+  };
+  const t0 = performance.now();
+  hls?.destroy(); hls = null; // avant de remplacer la session, sinon l'ancien lecteur réclame des segments supprimés
+  const r = await fetch('/api/playback/start', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  const p = await r.json();
+  if (!r.ok) { log('ERREUR ' + p.error); return; }
+  plan = p; avail = { from: p.offset, to: p.offset };
+  log(`${p.mode.toUpperCase()} depuis ${fmt(p.offset)} — vidéo : ${p.video} · audio : ${p.audio}\n    raisons : ${p.reasons.join(' ; ')}`);
+  hls?.destroy(); hls = null;
+  if (p.mode === 'direct') { v.src = p.url; v.currentTime = at; }
+  else if (window.Hls && Hls.isSupported()) {
+    hls = new Hls({ startPosition: 0, maxBufferLength: 30, backBufferLength: 60, manifestLoadingTimeOut: 30000, fragLoadingTimeOut: 40000 });
+    hls.on(Hls.Events.ERROR, (_e, d) => { if (d.fatal) log('hls.js fatal : ' + d.type + ' / ' + d.details); });
+    hls.loadSource(p.url); hls.attachMedia(v);
+  } else { v.src = p.url; }
+  v.addEventListener('playing', () => log(`Image en ${((performance.now() - t0) / 1000).toFixed(2)} s · ${v.videoWidth}×${v.videoHeight}`), { once: true });
+  // Ajustement fin : le remux démarre à l'image-clé précédente
+  v.addEventListener('loadedmetadata', () => { if (p.mode !== 'direct' && at - p.offset > 0.3) v.currentTime = at - p.offset; }, { once: true });
+  await v.play().catch((e) => log('play() : ' + e.message));
+  await loadSubs(sub && sub.textBased ? sub : null);
+  clearInterval(pingTimer); pingTimer = setInterval(ping, 5000);
+}
+
+async function loadSubs(sub) {
+  cues = [];
+  if (!sub) return;
+  const txt = await (await fetch(sub.url)).text();
+  const ts = (s) => { const p = s.trim().split(':').map(Number); return p.length === 3 ? p[0] * 3600 + p[1] * 60 + p[2] : p[0] * 60 + p[1]; };
+  for (const block of txt.split(/\n\n+/)) {
+    const lines = block.split('\n'); const i = lines.findIndex((l) => l.includes('-->'));
+    if (i < 0) continue;
+    const [a, b] = lines[i].split('-->');
+    cues.push({ start: ts(a), end: ts(b.trim().split(' ')[0]), text: lines.slice(i + 1).join('\n').replace(/<[^>]+>/g, '') });
+  }
+  log(`Sous-titres : ${cues.length} répliques`);
+}
+
+async function ping() {
+  if (!plan) return;
+  const r = await fetch('/api/playback/ping', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sessionId: plan.sessionId, position: now(), paused: v.paused }) });
+  if (r.ok) { const j = await r.json(); avail = { from: j.availableFrom, to: j.availableTo }; }
+}
+
+async function seekTo(t) {
+  t = Math.max(0, Math.min(t, plan.duration - 2));
+  if (plan.mode === 'direct') { v.currentTime = t; return; }
+  await ping();
+  if (t >= Math.max(plan.offset, avail.from) && t < avail.to - 2) { v.currentTime = t - plan.offset; log(`seek natif → ${fmt(t)}`); }
+  else { log(`seek hors plage [${fmt(avail.from)}–${fmt(avail.to)}] → relance ffmpeg à ${fmt(t)}`); await start(t); }
+}
+
+v.addEventListener('timeupdate', () => {
+  const t = now();
+  $('time').textContent = `${fmt(t)} / ${fmt(plan?.duration ?? 0)}`;
+  if (!$('seek').matches(':active')) $('seek').value = plan ? (t / plan.duration) * 1000 : 0;
+  const st = t - subOffset;
+  const c = cues.filter((c) => st >= c.start && st <= c.end);
+  $('subs').textContent = c.map((c) => c.text).join('\n');
+});
+$('seek').addEventListener('change', (e) => seekTo((e.target.value / 1000) * plan.duration));
+$('movie').addEventListener('change', selectMovie);
+$('play').addEventListener('click', () => start(movie.user.position > 30 ? movie.user.position : 0));
+$('pp').addEventListener('click', () => (v.paused ? v.play() : v.pause()));
+document.querySelectorAll('[data-j]').forEach((b) => b.addEventListener('click', () => seekTo(now() + Number(b.dataset.j))));
+document.querySelectorAll('[data-o]').forEach((b) => b.addEventListener('click', () => {
+  subOffset = Math.round((subOffset + Number(b.dataset.o)) * 10) / 10;
+  $('off').textContent = subOffset.toFixed(1).replace('.', ',') + ' s';
+  fetch(`/api/movies/${movie.id}/user`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ subtitleOffset: subOffset }) });
+}));
+window.addEventListener('pagehide', () => plan && navigator.sendBeacon('/api/playback/stop', new Blob([JSON.stringify({ sessionId: plan.sessionId })], { type: 'application/json' })));
+window.__test = { caps, start, seekTo, now, get plan() { return plan; }, get avail() { return avail; }, get cues() { return cues; } };
+// Test automatisé : runTest('Titre', départ, { quality, sub }) puis lire window.lastResult
+window.runTest = (title, at = 0, opts = {}) => { window.lastResult = 'running'; (async () => {
+  try {
+    const opt = [...$('movie').options].find((o) => o.text.startsWith(title));
+    $('movie').value = opt.value; await selectMovie();
+    $('quality').value = opts.quality ?? 'original';
+    $('sub').value = opts.sub ? ([...$('sub').options].find((o) => o.text.includes(opts.sub))?.value ?? '') : '';
+    v.muted = true;
+    const t0 = performance.now(); let tPlay = null;
+    v.addEventListener('playing', () => (tPlay = performance.now()), { once: true });
+    await start(at);
+    for (let i = 0; i < 300 && tPlay === null; i++) await new Promise((r) => setTimeout(r, 100));
+    await new Promise((r) => setTimeout(r, 2500));
+    window.lastResult = { title, mode: plan.mode, video: plan.video, audio: plan.audio, reasons: plan.reasons, offset: +plan.offset.toFixed(2),
+      startup_s: tPlay ? +((tPlay - t0) / 1000).toFixed(2) : 'jamais', now: +now().toFixed(1), size: v.videoWidth + 'x' + v.videoHeight,
+      paused: v.paused, err: v.error?.message ?? null, cues: cues.length, sub: $('subs').textContent.slice(0, 80) };
+  } catch (e) { window.lastResult = 'ERREUR ' + e.message; }
+})(); return 'lancé'; };
+loadMovies();
+</script>
+</body>
+</html>

@@ -52,10 +52,41 @@ export async function detectHwEncoders(): Promise<HwEncoder[]> {
   return (hwCache = ok);
 }
 
+let openclCache: boolean | null = null;
+/** Conversion HDR → SDR sur le GPU via OpenCL (≈ 2× plus rapide que zscale sur le CPU). */
+export async function detectOpenclTonemap(): Promise<boolean> {
+  if (openclCache !== null) return openclCache;
+  if (!ffmpegPath) return (openclCache = false);
+  openclCache = await new Promise<boolean>((resolve) => {
+    const p = spawn(ffmpegPath!, ['-hide_banner', '-loglevel', 'error', '-init_hw_device', 'opencl=ocl', '-f', 'lavfi', '-i', 'testsrc2=s=320x240:d=0.2',
+      // L'image de test doit être marquée HDR (PQ / BT.2020), sinon tonemap_opencl refuse l'entrée
+      '-filter_hw_device', 'ocl', '-vf', 'setparams=color_trc=smpte2084:color_primaries=bt2020:colorspace=bt2020nc,format=p010,hwupload,tonemap_opencl=tonemap=hable:format=nv12:t=bt709:m=bt709:p=bt709,hwdownload,format=nv12', '-f', 'null', '-'], { windowsHide: true });
+    const t = setTimeout(() => { p.kill(); resolve(false); }, 10000);
+    p.on('close', (code) => { clearTimeout(t); resolve(code === 0); });
+    p.on('error', () => { clearTimeout(t); resolve(false); });
+  });
+  return openclCache;
+}
+
+/** Marqueur ajouté à la ligne de commande de nos ffmpeg, pour retrouver les orphelins. */
+export const FFMPEG_TAG = ['-metadata', 'comment=cinematheque'];
+
+/**
+ * Si le serveur a été fermé brutalement (fenêtre fermée), Windows laisse tourner les ffmpeg enfants.
+ * Au démarrage, on arrête ceux qui portent notre marqueur.
+ */
+export function killOrphanFfmpeg(): number {
+  if (process.platform !== 'win32') return 0;
+  const ps = `Get-CimInstance Win32_Process -Filter "Name='ffmpeg.exe'" | Where-Object { $_.CommandLine -like '*comment=cinematheque*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force; 1 }`;
+  const r = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps], { encoding: 'utf8', windowsHide: true, timeout: 15000 });
+  return (r.stdout ?? '').split(/\r?\n/).filter((l) => l.trim() === '1').length;
+}
+
 /** Lance un binaire et renvoie stdout (Buffer). */
-export function run(bin: string, args: string[], opts: { timeoutMs?: number } = {}): Promise<Buffer> {
+export function run(bin: string, args: string[], opts: { timeoutMs?: number; lowPriority?: boolean } = {}): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const p = spawn(bin, args, { windowsHide: true });
+    if (opts.lowPriority && p.pid) { try { os.setPriority(p.pid, os.constants.priority.PRIORITY_LOW); } catch { /* sans importance */ } }
     const out: Buffer[] = [];
     let err = '';
     p.stdout.on('data', (d) => out.push(d));
