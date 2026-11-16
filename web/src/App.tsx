@@ -8,7 +8,9 @@ import { Home } from './pages/Home';
 import { Film } from './pages/Film';
 import { Library } from './pages/Library';
 import { Player } from './pages/Player';
+import { Search } from './components/Search';
 import './styles/app.css';
+import './styles/search.css';
 
 /** Écran pas encore construit : renvoie vers l'accueil. */
 function Soon({ title }: { title: string }) {
@@ -39,6 +41,7 @@ export function App() {
         <Route path="*" element={<Soon title="Cette bobine n'existe pas." />} />
       </Routes>
       {chrome && <BottomBar />}
+      <Search />
       <Vignette />
       <Grain />
     </>
