@@ -9,7 +9,8 @@ import { parseName, parseSubtitleName, similarity, normalizeTitle } from './pars
 import { probe } from './probe.ts';
 import { readExternal, detectLanguage } from './subtitles.ts';
 import { ffprobePath } from '../tools/ffmpeg.ts';
-import { tmdbEnabled, autoMatch, getMovie } from '../metadata/tmdb.ts';
+import { tmdbEnabled, autoMatch, getMovie, type MovieMetadata } from '../metadata/tmdb.ts';
+import { wikiFind, wikiMovie, wikiImage } from '../metadata/wiki.ts';
 import { fetchBuffer, storeImage, extractPalette } from '../metadata/images.ts';
 
 type Log = (msg: string) => void;
@@ -169,38 +170,47 @@ export function matchSubtitles() {
 
 /** Récupère et met en cache la fiche TMDB complète d'un film. */
 export async function enrichMovie(movieId: number, tmdbId: number, matchStatus: string, score: number | null) {
-  const meta = await getMovie(tmdbId);
-  const base = `m${tmdbId}`;
-  const [poster, backdrop, logo] = await Promise.all([
-    meta.posterUrl ? fetchBuffer(meta.posterUrl) : null,
-    meta.backdropUrl ? fetchBuffer(meta.backdropUrl) : null,
-    meta.logoUrl ? fetchBuffer(meta.logoUrl) : null,
-  ]);
+  await store(movieId, await getMovie(tmdbId), `m${tmdbId}`, matchStatus, score, 'tmdb');
+}
+
+/** Fiche Wikidata / Wikipédia (sans clé TMDB) : affiche, synopsis, générique. */
+async function enrichFromWiki(movieId: number, qid: string, matchStatus: string) {
+  const meta = await wikiMovie(qid);
+  await store(movieId, meta, `w${qid}`, matchStatus, null, 'wiki', qid);
+}
+
+async function store(movieId: number, meta: MovieMetadata, base: string, matchStatus: string, score: number | null, source: 'tmdb' | 'wiki', wikidataId: string | null = null) {
+  const download = source === 'wiki' ? wikiImage : fetchBuffer;
+  const get = (url: string | null) => (url ? download(url).catch((e) => { log(`Image : ${(e as Error).message}`); return null; }) : null);
+  const [poster, backdrop, logo] = await Promise.all([get(meta.posterUrl), get(meta.backdropUrl), get(meta.logoUrl)]);
   const posterRef = poster ? await storeImage(poster, `${base}-poster`, 'poster') : null;
   const backdropRef = backdrop ? await storeImage(backdrop, `${base}-backdrop`, 'backdrop') : null;
   const logoRef = logo ? await storeImage(logo, `${base}-logo`, 'logo') : null;
   const palette = poster ? await extractPalette(poster) : null;
 
   db.prepare(`UPDATE movies SET tmdb_id = ?, match_status = ?, match_score = ?, title = ?, original_title = ?, year = ?, release_date = ?, overview = ?, tagline = ?,
-      runtime = ?, original_language = ?, genres = ?, countries = ?, directors = ?, cast_json = ?, crew_json = ?, poster = ?, backdrop = ?, logo = ?, palette = ?, updated_at = datetime('now')
+      runtime = ?, original_language = ?, genres = ?, countries = ?, directors = ?, cast_json = ?, crew_json = ?, poster = ?, backdrop = ?, logo = ?, palette = ?,
+      meta_source = ?, wikidata_id = ?, updated_at = datetime('now')
     WHERE id = ?`).run(
-    tmdbId, matchStatus, score, meta.title, meta.originalTitle, meta.year, meta.releaseDate, meta.overview || null, meta.tagline || null,
-    meta.runtime, meta.originalLanguage, JSON.stringify(meta.genres), JSON.stringify(meta.countries), JSON.stringify(meta.directors),
-    JSON.stringify(meta.cast), JSON.stringify(meta.crew), json_(posterRef), json_(backdropRef), json_(logoRef), json_(palette), movieId,
+    source === 'tmdb' ? meta.tmdbId : null, matchStatus, score, meta.title, meta.originalTitle, meta.year, meta.releaseDate, meta.overview || null, meta.tagline || null,
+    meta.runtime, meta.originalLanguage || null, JSON.stringify(meta.genres), JSON.stringify(meta.countries), JSON.stringify(meta.directors),
+    JSON.stringify(meta.cast), JSON.stringify(meta.crew), json_(posterRef), json_(backdropRef), json_(logoRef), json_(palette),
+    source, wikidataId, movieId,
   );
 }
 const json_ = (v: unknown) => (v ? JSON.stringify(v) : null);
 
 async function fetchMetadata() {
-  if (!tmdbEnabled()) { log('Pas de clé TMDB : métadonnées ignorées.'); return; }
-  const todo = db.prepare(`SELECT id, parsed_title, parsed_year FROM movies WHERE missing = 0 AND match_status = 'pending'`).all() as any[];
+  if (!tmdbEnabled()) return fetchWikiMetadata();
+  // avec une clé : les films en attente, et ceux qui n'ont qu'une fiche Wikipédia
+  const todo = db.prepare(`SELECT id, parsed_title, parsed_year FROM movies WHERE missing = 0 AND (match_status = 'pending' OR (meta_source = 'wiki' AND match_status != 'manual'))`).all() as any[];
   status.phase = 'métadonnées'; status.done = 0; status.total = todo.length;
   const worker = async () => {
     for (let m = todo.shift(); m; m = todo.shift()) {
       try {
         const best = await autoMatch(m.parsed_title, m.parsed_year);
         if (!best || best.score < 0.55) {
-          db.prepare(`UPDATE movies SET match_status = 'unmatched', match_score = ? WHERE id = ?`).run(best?.score ?? null, m.id);
+          db.prepare(`UPDATE movies SET match_status = CASE WHEN meta_source = 'wiki' THEN match_status ELSE 'unmatched' END, match_score = ? WHERE id = ?`).run(best?.score ?? null, m.id);
           log(`Aucune correspondance sûre : ${m.parsed_title} (${m.parsed_year ?? '?'})`);
         } else {
           await enrichMovie(m.id, best.id, best.score >= 0.75 ? 'matched' : 'review', best.score);
@@ -212,6 +222,28 @@ async function fetchMetadata() {
     }
   };
   await Promise.all([worker(), worker(), worker()]);
+}
+
+/** Sans clé TMDB : Wikidata / Wikipédia, un film à la fois (débit limité par Wikimédia). */
+async function fetchWikiMetadata() {
+  const todo = db.prepare(`SELECT id, parsed_title, parsed_year FROM movies WHERE missing = 0 AND match_status = 'pending'`).all() as any[];
+  if (!todo.length) return;
+  log(`Pas de clé TMDB : fiches Wikipédia pour ${todo.length} film${todo.length > 1 ? 's' : ''}.`);
+  status.phase = 'métadonnées'; status.done = 0; status.total = todo.length;
+  for (const m of todo) {
+    try {
+      const qid = await wikiFind(m.parsed_title, m.parsed_year);
+      if (!qid) {
+        db.prepare(`UPDATE movies SET match_status = 'unmatched' WHERE id = ?`).run(m.id);
+        log(`Wikipédia — introuvable : ${m.parsed_title} (${m.parsed_year ?? '?'})`);
+      } else {
+        await enrichFromWiki(m.id, qid, m.parsed_year ? 'matched' : 'review');
+      }
+    } catch (e) {
+      log(`Wikipédia — ${m.parsed_title} : ${(e as Error).message}`); // reste en attente, repris au prochain scan
+    }
+    status.done++;
+  }
 }
 
 // ---------- Scan complet ----------

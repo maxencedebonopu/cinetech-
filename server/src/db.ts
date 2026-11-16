@@ -105,6 +105,12 @@ const MIGRATIONS: string[] = [
     agent TEXT
   );
   `,
+  // 4 — provenance des métadonnées ('tmdb' ou 'wiki' : Wikidata / Wikipédia, en attendant une clé TMDB)
+  `
+  ALTER TABLE movies ADD COLUMN meta_source TEXT;
+  ALTER TABLE movies ADD COLUMN wikidata_id TEXT;
+  UPDATE movies SET meta_source = 'tmdb' WHERE tmdb_id IS NOT NULL;
+  `,
 ];
 
 function migrate() {

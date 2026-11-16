@@ -1,4 +1,4 @@
-// Cache local des images TMDB : variantes WebP dimensionnées, blurhash, palette dominante.
+// Cache local des images (TMDB, Wikimédia) : variantes WebP dimensionnées, blurhash, palette dominante.
 import fs from 'node:fs';
 import path from 'node:path';
 import sharp from 'sharp';
@@ -14,9 +14,9 @@ export const IMAGE_SIZES = {
   profile: [185],
 } as const;
 
-export async function fetchBuffer(url: string): Promise<Buffer> {
+export async function fetchBuffer(url: string, headers?: Record<string, string>): Promise<Buffer> {
   for (let attempt = 0; attempt < 3; attempt++) {
-    const res = await fetch(url);
+    const res = await fetch(url, { headers });
     if (res.ok) return Buffer.from(await res.arrayBuffer());
     if (res.status !== 429 && res.status < 500) throw new Error(`Image ${res.status} : ${url}`);
     await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));

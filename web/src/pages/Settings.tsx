@@ -182,7 +182,7 @@ function MetadataSection({ settings, save, movies, notify }: {
 
   return (
     <Section id="metadonnees" n={2} title={<>Les <em>métadonnées</em></>}
-      intro="Titres, résumés, générique, affiches et fonds viennent de TMDB. Les images sont gardées sur ce PC.">
+      intro="Sans clé TMDB, les fiches viennent de Wikipédia et Wikidata : affiche, synopsis, générique. Avec une clé, TMDB les remplace, en plus complet (fonds, logos). Les images sont gardées sur ce PC.">
       <Row label="Clé TMDB" wide hint={<>Gratuite : themoviedb.org → Paramètres → API. Clé v3 (32 caractères) ou jeton v4 (commence par eyJ). Elle reste sur ce PC et n'est jamais réaffichée.</>}>
         <div className="tmdb">
           <p className={`tmdb__state t-mono${info?.enabled ? ' is-on' : ''}`}>
