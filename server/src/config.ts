@@ -13,6 +13,8 @@ export const config = {
   port: Number(process.env.PORT || 8765),
   tmdbKey: (process.env.TMDB_KEY || '').trim(),
   tmdbLanguage: process.env.TMDB_LANGUAGE || 'fr-FR',
+  /** Mot de passe de l'accès distant (repli si aucun n'est défini dans Réglages). */
+  password: (process.env.MOT_DE_PASSE || '').trim(),
   initialLibraryDirs: (process.env.LIBRARY_DIRS || '')
     .split(';')
     .map((s) => s.trim())

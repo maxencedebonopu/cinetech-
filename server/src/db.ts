@@ -96,6 +96,15 @@ const MIGRATIONS: string[] = [
   ALTER TABLE movies ADD COLUMN still TEXT;
   ALTER TABLE movies ADD COLUMN still_palette TEXT;
   `,
+  // 3 — séances ouvertes à distance (jeton haché, jamais le jeton lui-même)
+  `
+  CREATE TABLE auth_sessions (
+    token_hash TEXT PRIMARY KEY,
+    created INTEGER NOT NULL,
+    seen INTEGER NOT NULL,
+    agent TEXT
+  );
+  `,
 ];
 
 function migrate() {
@@ -126,7 +135,8 @@ export type SettingsShape = { -readonly [K in keyof typeof DEFAULT_SETTINGS]: (t
 export function getSettings(): SettingsShape {
   const rows = db.prepare('SELECT key, value FROM settings').all() as { key: string; value: string }[];
   const out: Record<string, unknown> = { ...DEFAULT_SETTINGS };
-  for (const r of rows) out[r.key] = JSON.parse(r.value);
+  // seules les clés connues sortent : la clé TMDB et le mot de passe vivent aussi dans cette table
+  for (const r of rows) if (r.key in DEFAULT_SETTINGS) out[r.key] = JSON.parse(r.value);
   return out as SettingsShape;
 }
 

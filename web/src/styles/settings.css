@@ -129,3 +129,12 @@
   .sys > div { grid-template-columns: minmax(0, 1fr); gap: 0.2rem; }
   .set-status .btn { margin-left: 0; }
 }
+
+/* ---- Accès distant ---- */
+.access__form { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; }
+.access__devices { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: flex-end; gap: var(--s-3) var(--s-5); }
+@media (max-width: 760px) { .access__devices { justify-content: flex-start; } }
+.access__how { display: grid; gap: var(--s-2); margin: 0; color: var(--c-text-2); }
+.access__how code { color: var(--c-text-1); border: var(--hair) solid var(--c-rule-strong); padding: 0.45rem 0.7rem; justify-self: start; letter-spacing: 0.04em; text-transform: none; }
+.access__how .t-mono { text-transform: none; letter-spacing: 0.04em; color: var(--c-text-1); overflow-wrap: anywhere; }
+@media (max-width: 760px) { .access__form { grid-template-columns: minmax(0, 1fr); } }

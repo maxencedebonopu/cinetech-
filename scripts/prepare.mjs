@@ -25,6 +25,18 @@ if (major < 22) {
   process.exit(1);
 }
 
+// 0. Déjà en marche ? (double-clic sur le raccourci alors que le serveur tourne) : on ouvre
+//    simplement le navigateur, sans mise à jour ni second serveur. Code de sortie 3 pour start.bat.
+const envFile = path.join(ROOT, '.env');
+const port = process.env.PORT || (fs.existsSync(envFile) && /^\s*PORT\s*=\s*(\d+)/m.exec(fs.readFileSync(envFile, 'utf8'))?.[1]) || '8765';
+const running = await fetch(`http://127.0.0.1:${port}/api/health`, { signal: AbortSignal.timeout(1500) })
+  .then((r) => r.ok && r.json()).then((h) => Boolean(h && 'version' in h)).catch(() => false);
+if (running) {
+  step(`Déjà en marche sur le port ${port}.`);
+  if (process.env.CINE_OUVRIR === '1') execSync(`start "" "http://localhost:${port}"`);
+  process.exit(3);
+}
+
 // 1. Mise à jour depuis git (avance rapide seulement, jamais si des fichiers sont modifiés)
 if (!args.has('--sans-maj') && fs.existsSync(path.join(ROOT, '.git'))) {
   const dirty = out('git status --porcelain --untracked-files=no');

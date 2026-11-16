@@ -2,7 +2,7 @@
 
 Plateforme de streaming personnelle pour une collection de films numérisés (`.mkv`, `.mp4`, `.avi` + sous-titres `.srt`/`.ass`).
 
-> **État : phases 1 à 5 terminées** (bibliothèque, lecture, système de dessin, écrans, mobile / TV / PWA). Reste le déploiement distant (phase 6 : démarrage automatique, Tailscale, mot de passe). Métadonnées TMDB codées, en attente de la clé. Nuancier : http://localhost:8765/design · banc d'essai de lecture : http://localhost:8765/dev/player
+> **État : phases 1 à 6 terminées** (bibliothèque, lecture, système de dessin, écrans, mobile / TV / PWA, lancement et accès distant). Métadonnées TMDB codées, en attente de la clé (à coller dans Réglages). Nuancier : http://localhost:8765/design · banc d'essai de lecture : http://localhost:8765/dev/player
 
 ## Lancer depuis git
 
@@ -15,11 +15,53 @@ start.bat
 `start.bat` (double-clic possible) prépare puis lance le serveur sur http://localhost:8765 :
 
 1. **Mise à jour** : `git pull` en avance rapide, sauté si des fichiers suivis sont modifiés localement ou hors ligne (`start.bat --sans-maj` pour ne jamais mettre à jour).
-2. **Dépendances** : `npm ci` au premier lancement, puis seulement quand `package-lock.json` change.
+2. **Dépendances** : `npm install` au premier lancement, puis seulement quand `package-lock.json` change.
 3. **Configuration** : `.env` créé depuis `.env.example` s'il manque (renseigner `LIBRARY_DIRS` et `TMDB_KEY`).
 4. **Interface** : reconstruite seulement quand `web/` ou `shared/` change.
 
 Premier lancement ≈ 1 min, les suivants quelques secondes. Prérequis : Node.js 22+ et ffmpeg (voir plus bas).
+
+Une fois prêt, le serveur **ouvre le navigateur** sur la Cinémathèque. Relancer `start.bat` alors qu'il tourne déjà ouvre simplement le navigateur, sans second serveur. `start.bat --sans-navigateur` lance le serveur sans rien ouvrir.
+
+## Lancer d'un double-clic, et au démarrage de Windows
+
+Double-cliquer une fois sur **`raccourcis.bat`** :
+
+1. **Bureau + démarrage automatique** : un raccourci « Cinémathèque » (icône de bobine) sur le Bureau, et le serveur qui se lance seul à l'ouverture de session Windows (fenêtre réduite, sans ouvrir le navigateur) ;
+2. **Bureau seulement** ;
+3. **Retirer les raccourcis**.
+
+Ensuite : double-clic sur « Cinémathèque » sur le Bureau. Le serveur tourne dans la fenêtre réduite de la barre des tâches ; la fermer arrête le serveur. Sans `.bat` : `node scripts/raccourcis.mjs` (`--sans-demarrage`, `--retirer`). Les raccourcis pointent vers ce dossier : à refaire si le dossier est déplacé. Le démarrage automatique est un simple raccourci dans le dossier Démarrage de Windows (`Win + R` → `shell:startup`), sans droits administrateur.
+
+## Accès à distance : Tailscale et mot de passe
+
+Le serveur n'est jamais exposé sur Internet : les appareils se rejoignent par **Tailscale**, un réseau privé chiffré entre vos appareils, sans ouvrir de port sur la box.
+
+**1. Tailscale sur le PC et les appareils**
+
+- PC : `winget install Tailscale.Tailscale`, puis se connecter (icône dans la zone de notification).
+- Téléphone, tablette, téléviseur Android : application Tailscale, même compte.
+- Console d'administration (login.tailscale.com) → **DNS** : activer **MagicDNS** et **HTTPS Certificates**.
+
+**2. Adresse HTTPS** (nécessaire pour installer l'application et pour le mode hors ligne), dans un terminal sur le PC :
+
+```bash
+tailscale serve --bg 8765
+```
+
+La Cinémathèque répond alors sur `https://<nom-du-pc>.<votre-réseau>.ts.net` (l'adresse exacte s'affiche, et `tailscale serve status` la redonne). Le réglage survit aux redémarrages ; `tailscale serve reset` l'arrête. Visible seulement par les appareils de votre réseau Tailscale, jamais publiquement (ne pas utiliser `tailscale funnel`).
+
+**3. Mot de passe** : sur le PC, **Réglages → Accès distant** → choisir un mot de passe (6 caractères ou plus). Il est enregistré haché dans la base ; le `.env` peut aussi en fournir un (`MOT_DE_PASSE`), utilisé seulement si aucun n'est défini dans Réglages.
+
+**Règles**
+
+- Le PC lui-même (`http://localhost:8765`) n'a jamais besoin du mot de passe.
+- Tout autre appareil (adresse Tailscale, `http://100.x.y.z:8765`, réseau local) arrive sur la page « Séance privée ». Le mot de passe ouvre une séance d'un an sur cet appareil (cookie `HttpOnly`).
+- **Sans mot de passe défini, l'accès distant est fermé.**
+- Après 5 essais ratés, l'appareil attend 1 min, puis 2, 4… Changer le mot de passe déconnecte tous les autres appareils ; « Tout déconnecter » aussi. Le retirer n'est possible que depuis le PC.
+- Seules les données sont gardées (API, affiches, flux) ; l'interface elle-même est publique pour pouvoir afficher la page de connexion.
+
+**Sur l'appareil** : ouvrir l'adresse `https://…ts.net`, entrer le mot de passe, puis « Ajouter à l'écran d'accueil » (téléphone) ; sur un téléviseur, le navigateur passe seul en mode TV.
 
 ## Organisation
 
@@ -48,6 +90,7 @@ Copier `.env.example` en `.env` (déjà fait) et renseigner :
 | `PORT` | Port HTTP (défaut 8765) |
 | `TMDB_KEY` | Clé TMDB v3 ou jeton v4 (themoviedb.org → Paramètres → API). Plus simple : la coller dans Réglages, qui passe avant le .env |
 | `TMDB_LANGUAGE` | Langue des fiches (défaut `fr-FR`) |
+| `MOT_DE_PASSE` | Mot de passe de l'accès distant, si aucun n'est défini dans Réglages → Accès distant |
 | `LIBRARY_DIRS` | Dossiers de films au premier lancement, séparés par `;` |
 
 ## Commandes
@@ -135,6 +178,10 @@ Démonstration complète : **`/design`** (le « nuancier »), composée avec les
 | GET/PUT | `/api/settings` | Réglages |
 | GET · PUT · DELETE | `/api/tmdb/key` | État de la clé (provenance, 4 derniers caractères) / vérification et enregistrement / retrait |
 | POST | `/api/library/check-dir` | Le dossier existe-t-il sur le serveur ? |
+| GET | `/api/auth` | Accès distant : appareil local ?, mot de passe défini ?, connecté ? |
+| POST | `/api/auth/connexion` · `/api/auth/deconnexion` | Ouvre / ferme la séance de l'appareil (cookie d'un an) |
+| PUT · DELETE | `/api/auth/mot-de-passe` | Définit ou change (à distance : mot de passe actuel requis) / retire (depuis le PC seulement) |
+| POST | `/api/auth/fermer-seances` | Déconnecte tous les appareils |
 | GET | `/api/stats?annee=` | Statistiques : registre des séances (année ou tout) et collection |
 | POST | `/api/playback/start` | Plan de lecture (direct / remux / transcodage) pour un film, une position, une piste audio, une qualité |
 | GET | `/api/hls/:session/index.m3u8` · `init.mp4` · `segNNNNN.m4s` | Flux HLS |

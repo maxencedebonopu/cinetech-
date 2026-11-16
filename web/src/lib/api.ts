@@ -1,14 +1,21 @@
-import type { MovieSummary, MovieDetail, TrickplayInfo, UserData, TmdbSearchResult, Health, Settings, Stats, TmdbKeyInfo, LibraryStatus, OrphanSubtitle } from '@cine/shared';
+import type { AuthState, MovieSummary, MovieDetail, TrickplayInfo, UserData, TmdbSearchResult, Health, Settings, Stats, TmdbKeyInfo, LibraryStatus, OrphanSubtitle } from '@cine/shared';
 
 export class ApiError extends Error {
   constructor(public status: number, public path: string, message: string) { super(message); }
+}
+
+/** Erreur de l'API ; un 401 « auth » (séance fermée, mot de passe changé) ramène à la page de connexion. */
+async function failure(res: Response, path: string) {
+  const body = await res.json().catch(() => null);
+  if (res.status === 401 && body?.auth) window.dispatchEvent(new Event('cine:auth'));
+  return new ApiError(res.status, path, body?.error ?? res.statusText);
 }
 
 export async function get<T>(path: string): Promise<T> {
   let res: Response;
   try { res = await fetch(path); }
   catch { throw new ApiError(0, path, 'Serveur injoignable'); }
-  if (!res.ok) throw new ApiError(res.status, path, (await res.json().catch(() => null))?.error ?? res.statusText);
+  if (!res.ok) throw await failure(res, path);
   return res.json() as Promise<T>;
 }
 
@@ -16,11 +23,17 @@ async function send<T>(method: string, path: string, body: unknown): Promise<T> 
   let res: Response;
   try { res = await fetch(path, body === undefined ? { method } : { method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); }
   catch { throw new ApiError(0, path, 'Serveur injoignable'); }
-  if (!res.ok) throw new ApiError(res.status, path, (await res.json().catch(() => null))?.error ?? res.statusText);
+  if (!res.ok) throw await failure(res, path);
   return res.json() as Promise<T>;
 }
 
 export const api = {
+  auth: () => get<AuthState>('/api/auth'),
+  login: (motDePasse: string) => send<{ ok: boolean }>('POST', '/api/auth/connexion', { motDePasse }),
+  logout: () => send<{ ok: boolean }>('POST', '/api/auth/deconnexion', {}),
+  setPassword: (nouveau: string, actuel?: string) => send<{ ok: boolean }>('PUT', '/api/auth/mot-de-passe', { nouveau, actuel }),
+  removePassword: () => send<{ ok: boolean }>('DELETE', '/api/auth/mot-de-passe', undefined),
+  closeSessions: () => send<{ ok: boolean; sessions: number }>('POST', '/api/auth/fermer-seances', {}),
   health: () => get<Health>('/api/health'),
   settings: () => get<Settings>('/api/settings'),
   putSettings: (patch: Partial<Settings>) => send<Settings>('PUT', '/api/settings', patch),

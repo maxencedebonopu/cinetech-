@@ -1,0 +1,61 @@
+/* « Séance privée » : un écran de salle, bandes letterbox, un seul champ. */
+.login {
+  position: relative; min-height: 100svh; display: grid; grid-template-rows: auto 1fr auto auto;
+  padding: 0 var(--gutter); overflow: hidden;
+}
+.login__bar { height: clamp(2.5rem, 9svh, 6.5rem); margin: 0 calc(var(--gutter) * -1); background: #000; }
+.login__bar--top { border-bottom: var(--hair) solid var(--c-rule); }
+.login__bar--bottom { border-top: var(--hair) solid var(--c-rule); }
+
+.login__inner { align-self: center; width: 100%; max-width: 46rem; padding: var(--s-8) 0; }
+.login__kicker { display: flex; align-items: center; gap: var(--s-3); color: var(--c-text-2); margin-bottom: var(--s-6); }
+.login__rule { width: 3rem; height: var(--hair); background: var(--c-rule-strong); }
+.login__title {
+  font-family: var(--font-display); font-weight: 400; font-size: var(--fs-h1); line-height: var(--lh-display);
+  letter-spacing: var(--tracking-display); margin: 0 0 var(--s-7);
+}
+.login__title em { font-style: italic; color: var(--c-text-1); }
+
+.login__form { display: grid; gap: var(--s-2); max-width: 34rem; }
+.login__label { color: var(--c-text-2); }
+.login__field {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--s-4);
+  border-bottom: var(--hair) solid var(--c-rule-strong); transition: border-color var(--d-micro);
+}
+.login__field:focus-within { border-bottom-color: var(--c-text-1); }
+.login__field.is-error { border-bottom-color: #E8867F; }
+.login__field input {
+  min-width: 0; background: transparent; border: 0; color: var(--c-text-1);
+  font-family: var(--font-display); font-size: clamp(1.75rem, 1.3rem + 1.6vw, 2.5rem); letter-spacing: 0.08em; padding: 0.45rem 0 0.55rem;
+}
+.login__field input:focus-visible { outline: none; }
+.login__field .btn { margin-bottom: var(--s-2); }
+.login__error { min-height: 1.5em; margin: 0; color: #E8867F; font-size: var(--fs-caption); }
+
+.login__text { max-width: var(--measure); color: var(--c-text-2); font-size: var(--fs-lead); line-height: var(--lh-text); margin: 0; }
+.login__text .t-mono { color: var(--c-text-1); white-space: nowrap; }
+
+.login__reel {
+  position: absolute; z-index: 0; top: 50%; right: calc(var(--gutter) * -1 - 12vh); width: min(78svh, 52vw); height: auto;
+  transform: translateY(-50%); fill: none; stroke: var(--c-text-1); stroke-width: 0.8; opacity: 0.16; pointer-events: none;
+}
+.login__reel-spin { transform-origin: 200px 200px; animation: login-spin 140s linear infinite; }
+.login__reel-hub { fill: var(--c-velvet); stroke: none; }
+@keyframes login-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .login__reel-spin { animation: none; } }
+.login__inner, .login__foot { position: relative; z-index: 1; }
+
+.login__foot { display: flex; justify-content: space-between; color: var(--c-text-3); padding: var(--s-4) 0; }
+
+@media (max-width: 900px) { .login__reel { display: none; } }
+
+@media (max-width: 600px) {
+  .login__inner { padding: var(--s-6) 0; }
+  .login__title { margin-bottom: var(--s-6); }
+  .login__field { grid-template-columns: minmax(0, 1fr); gap: 0; border-bottom: 0; }
+  .login__field input { border-bottom: var(--hair) solid var(--c-rule-strong); }
+  .login__field:focus-within input { border-bottom-color: var(--c-text-1); }
+  .login__field.is-error input { border-bottom-color: #E8867F; }
+  .login__field .btn { margin: var(--s-5) 0 0; justify-self: stretch; justify-content: center; }
+  .login__text .t-mono { white-space: normal; }
+}

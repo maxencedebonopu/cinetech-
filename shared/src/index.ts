@@ -290,3 +290,17 @@ export interface TmdbKeyInfo {
   /** 4 derniers caractères, pour reconnaître la clé sans l'exposer. */
   hint: string | null;
 }
+
+/** État de l'accès distant vu par l'appareil qui demande. */
+export interface AuthState {
+  /** Requête venue de l'ordinateur serveur lui-même (jamais de mot de passe). */
+  local: boolean;
+  /** Un mot de passe existe (Réglages ou .env). */
+  configured: boolean;
+  authenticated: boolean;
+  /** Provenance du mot de passe, visible seulement une fois connecté. */
+  source: 'reglages' | 'env' | null;
+  /** Appareils connectés, visible seulement une fois connecté. */
+  sessions: number | null;
+  minLength: number;
+}

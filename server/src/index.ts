@@ -1,9 +1,11 @@
+import { exec } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import Fastify from 'fastify';
 import fastifyStatic from '@fastify/static';
 import { config, paths, ROOT } from './config.ts';
 import { apiRoutes } from './api/routes.ts';
+import { authRoutes } from './auth.ts';
 import { playbackRoutes } from './api/playback.ts';
 import { scan, watch, stopWatching } from './library/library.ts';
 import { wipeTranscodeDir, stopAll } from './playback/sessions.ts';
@@ -13,6 +15,10 @@ import { ffmpegPath, detectHwEncoders, detectOpenclTonemap, killOrphanFfmpeg } f
 import { db } from './db.ts';
 
 const app = Fastify({ logger: { level: 'warn' } });
+
+// Mot de passe de l'accès distant : posé directement sur l'instance racine (pas de register),
+// avant tout le reste, pour que sa garde couvre toutes les routes.
+await authRoutes(app);
 
 // Images mises en cache (immuables : le nom change si l'image change)
 await app.register(fastifyStatic, {
@@ -53,6 +59,10 @@ if (fs.existsSync(config.webDist)) {
 
 await app.listen({ port: config.port, host: '0.0.0.0' });
 console.log(`\n  Cinémathèque — http://localhost:${config.port}\n`);
+// Lancé par start.bat (raccourci du Bureau) : ouvre le navigateur une fois le serveur prêt
+if (process.env.CINE_OUVRIR === '1' && process.platform === 'win32') {
+  exec(`start "" "http://localhost:${config.port}"`);
+}
 if (!ffmpegPath) console.warn('  ⚠ ffmpeg introuvable : installez-le (voir README).');
 
 const orphans = killOrphanFfmpeg();

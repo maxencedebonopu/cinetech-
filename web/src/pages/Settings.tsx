@@ -1,10 +1,10 @@
-// Réglages : « La cabine ». Bibliothèque, métadonnées, projection, salle, sous-titres orphelins, système.
+// Réglages : « La cabine ». Bibliothèque, métadonnées, projection, salle, accès distant, sous-titres orphelins, système.
 // Tout s'enregistre aussitôt ; rien n'est demandé deux fois.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { CaretDown, FolderSimple, X, ArrowClockwise, Check } from '@phosphor-icons/react';
-import type { Health, LibraryStatus, OrphanSubtitle, Settings as SettingsData, TmdbKeyInfo, MovieSummary } from '@cine/shared';
+import type { AuthState, Health, LibraryStatus, OrphanSubtitle, Settings as SettingsData, TmdbKeyInfo, MovieSummary } from '@cine/shared';
 import { api, ApiError } from '../lib/api';
 import { useMovies, useSettings, saveSettings, refreshMovies } from '../lib/store';
 import { pad, langName } from '../lib/format';
@@ -19,6 +19,7 @@ const SECTIONS = [
   ['metadonnees', 'Métadonnées'],
   ['projection', 'Projection'],
   ['salle', 'Salle'],
+  ['acces', 'Accès distant'],
   ['orphelins', 'Sous-titres orphelins'],
   ['systeme', 'Système'],
 ] as const;
@@ -223,7 +224,79 @@ function MetadataSection({ settings, save, movies, notify }: {
   );
 }
 
-// ---------- 05 Sous-titres orphelins ----------
+// ---------- 05 Accès distant ----------
+function AccessSection({ notify }: { notify: (m: string) => void }) {
+  const [auth, setAuth] = useState<AuthState | null>(null);
+  const [actuel, setActuel] = useState('');
+  const [nouveau, setNouveau] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const load = () => api.auth().then(setAuth).catch(() => {});
+  useEffect(() => { void load(); }, []);
+  if (!auth) return null;
+
+  const min = auth.minLength;
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    setBusy(true); setError(null);
+    try {
+      await api.setPassword(nouveau, auth.local ? undefined : actuel);
+      setActuel(''); setNouveau('');
+      notify(auth.configured ? 'Mot de passe changé. Les autres appareils devront se reconnecter.' : "Mot de passe défini. L'accès distant est ouvert.");
+      await load();
+    } catch (err) { setError(err instanceof ApiError ? err.message : "Échec de l'enregistrement."); }
+    finally { setBusy(false); }
+  };
+  const remove = async () => { await api.removePassword(); notify("Mot de passe retiré : l'accès distant est fermé."); await load(); };
+  const closeAll = async () => { await api.closeSessions(); notify('Tous les appareils sont déconnectés.'); await load(); };
+  const logout = async () => { await api.logout(); window.location.reload(); };
+  const n = auth.sessions ?? 0;
+
+  return (
+    <Section id="acces" n={5} title={<>L'accès <em>distant</em></>}
+      intro="Depuis ce PC, jamais de mot de passe. Depuis un autre appareil (Tailscale, réseau local), un mot de passe ouvre une séance d'un an.">
+      <Row label="Mot de passe" wide hint={auth.local
+        ? `Au moins ${min} caractères. Enregistré haché sur ce PC ; le changer déconnecte les autres appareils.`
+        : 'Pour le changer depuis cet appareil, le mot de passe actuel est demandé.'}>
+        <div className="tmdb">
+          <p className={`tmdb__state t-mono${auth.configured ? ' is-on' : ''}`}>
+            {auth.configured
+              ? <><Check aria-hidden /> Défini · {auth.source === 'env' ? 'fichier .env' : 'saisi ici'}</>
+              : "Aucun : l'accès distant est fermé."}
+          </p>
+          <form className={`tmdb__form${auth.local ? '' : ' access__form'}`} onSubmit={submit}>
+            {!auth.local && (
+              <input type="password" value={actuel} onChange={(e) => { setActuel(e.target.value); setError(null); }} aria-label="Mot de passe actuel"
+                placeholder="Mot de passe actuel" autoComplete="current-password" />
+            )}
+            <input type="password" className={error ? 'is-error' : ''} aria-invalid={!!error} value={nouveau} onChange={(e) => { setNouveau(e.target.value); setError(null); }}
+              aria-label={auth.configured ? 'Nouveau mot de passe' : 'Mot de passe'} placeholder={auth.configured ? 'Nouveau mot de passe' : 'Choisir un mot de passe'} autoComplete="new-password" />
+            <Button type="submit" variant={auth.configured ? 'secondary' : 'primary'} disabled={nouveau.length < min || busy || (!auth.local && !actuel)}>
+              {auth.configured ? 'Changer' : 'Définir'}
+            </Button>
+          </form>
+          {error && <p className="set-error" role="alert">{error}</p>}
+          {auth.local && auth.source === 'reglages' && <button className="link tmdb__remove" onClick={remove}>Retirer le mot de passe</button>}
+        </div>
+      </Row>
+      <Row label="Appareils connectés" hint="Téléphones, tablettes, téléviseurs ouverts avec le mot de passe.">
+        <div className="access__devices">
+          <span className="t-mono">{n === 0 ? 'Aucun' : `${n} appareil${n > 1 ? 's' : ''}`}</span>
+          {n > 0 && <button className="link" onClick={closeAll}>Tout déconnecter</button>}
+          {!auth.local && <button className="link" onClick={logout}>Déconnecter cet appareil</button>}
+        </div>
+      </Row>
+      <Row label="Depuis l'extérieur" wide hint="Tailscale relie vos appareils sans ouvrir de port. tailscale serve ajoute le HTTPS, nécessaire pour installer l'application.">
+        <p className="access__how">
+          <code className="t-mono">tailscale serve --bg {window.location.port || '8765'}</code>
+          <span>puis ouvrir <span className="t-mono">https://nom-du-pc.votre-reseau.ts.net</span> sur l'appareil. Détails dans le README.</span>
+        </p>
+      </Row>
+    </Section>
+  );
+}
+
+// ---------- 06 Sous-titres orphelins ----------
 function OrphansSection({ movies, notify }: { movies: MovieSummary[] | null; notify: (m: string) => void }) {
   const [list, setList] = useState<OrphanSubtitle[] | null>(null);
   const [choice, setChoice] = useState<Record<number, string>>({});
@@ -248,7 +321,7 @@ function OrphansSection({ movies, notify }: { movies: MovieSummary[] | null; not
   };
 
   return (
-    <Section id="orphelins" n={5} title={<>Sous-titres <em>orphelins</em></>}
+    <Section id="orphelins" n={6} title={<>Sous-titres <em>orphelins</em></>}
       intro="Fichiers .srt, .ass ou .vtt trouvés sans film correspondant. Les rattacher les rend disponibles dans le lecteur.">
       {list == null ? <Skeleton h="6rem" /> : list.length === 0 ? (
         <p className="set-note set-note--plain">Aucun orphelin : chaque sous-titre a trouvé son film.</p>
@@ -376,9 +449,10 @@ export function Settings() {
               </Row>
             </Section>
 
+            <AccessSection notify={setToast} />
             <OrphansSection movies={movies} notify={setToast} />
 
-            <Section id="systeme" n={6} title={<>Le <em>système</em></>} intro="Lecture seule : ce que le serveur a trouvé au démarrage.">
+            <Section id="systeme" n={7} title={<>Le <em>système</em></>} intro="Lecture seule : ce que le serveur a trouvé au démarrage.">
               <dl className="sys">
                 <div><dt className="t-mono">ffmpeg</dt><dd>{health ? health.ffmpeg ?? 'introuvable' : '…'}</dd></div>
                 <div><dt className="t-mono">Encodage matériel</dt><dd>{health ? (health.hwaccel.length ? health.hwaccel.join(', ') : 'aucun, processeur') : '…'}</dd></div>
