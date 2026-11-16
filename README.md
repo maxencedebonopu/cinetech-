@@ -2,7 +2,7 @@
 
 Plateforme de streaming personnelle pour une collection de films numérisés (`.mkv`, `.mp4`, `.avi` + sous-titres `.srt`/`.ass`).
 
-> **État : phases 1 à 3 terminées, phase 4 bien avancée** (accueil, fiche film, bibliothèque, lecteur, recherche, statistiques ; restent les réglages). Métadonnées TMDB codées, en attente de la clé. Nuancier : http://localhost:8765/design · banc d'essai de lecture : http://localhost:8765/dev/player
+> **État : phases 1 à 4 terminées** (bibliothèque, lecture, système de dessin, tous les écrans). Restent le mobile / TV / PWA (phase 5) et le déploiement distant (phase 6). Métadonnées TMDB codées, en attente de la clé. Nuancier : http://localhost:8765/design · banc d'essai de lecture : http://localhost:8765/dev/player
 
 ## Lancer depuis git
 
@@ -46,7 +46,7 @@ Copier `.env.example` en `.env` (déjà fait) et renseigner :
 | Variable | Rôle |
 |---|---|
 | `PORT` | Port HTTP (défaut 8765) |
-| `TMDB_KEY` | Clé TMDB v3 ou jeton v4 (themoviedb.org → Paramètres → API) |
+| `TMDB_KEY` | Clé TMDB v3 ou jeton v4 (themoviedb.org → Paramètres → API). Plus simple : la coller dans Réglages, qui passe avant le .env |
 | `TMDB_LANGUAGE` | Langue des fiches (défaut `fr-FR`) |
 | `LIBRARY_DIRS` | Dossiers de films au premier lancement, séparés par `;` |
 
@@ -108,6 +108,7 @@ Démonstration complète : **`/design`** (le « nuancier »), composée avec les
 - **Lecteur** `/lecture/:id` : rideau et amorce, chapitres, vignettes, sous-titres réglables, raccourcis.
 - **Recherche** : `Ctrl K` ou `/` partout (sauf en projection), titres, cinéastes, années, fautes de frappe.
 - **Statistiques** `/statistiques` (« Le registre ») : temps, séances, films, plus longue série ; registre jour par jour ; heure et jour préférés ; films les plus revus et journal des séances ; décennies, genres, cinéastes ; état de la collection (définition, image, son, sous-titres, records) ; notes. Par année ou depuis le début (`?annee=2026`). Une séance de moins d'une minute ne compte pas.
+- **Réglages** `/reglages` (« La cabine ») : dossiers (vérifiés avant ajout, rescan avec progression), clé TMDB (vérifiée auprès de TMDB, stockée dans la base locale, jamais réaffichée : seuls ses 4 derniers caractères), langue des fiches, films à corriger, langue audio (VO par défaut) et sous-titres préférés, qualité à distance, amorce, grain, sous-titres orphelins à rattacher (film proposé si titre et année concordent), état du système.
 
 ## API (phases 1 et 2)
 
@@ -123,6 +124,8 @@ Démonstration complète : **`/design`** (le « nuancier »), composée avec les
 | GET | `/api/subtitles/:id.vtt` | Sous-titre en WebVTT |
 | GET | `/api/subtitles/orphans` · POST `/api/subtitles/:id/assign` | Sous-titres sans film / rattachement manuel |
 | GET/PUT | `/api/settings` | Réglages |
+| GET · PUT · DELETE | `/api/tmdb/key` | État de la clé (provenance, 4 derniers caractères) / vérification et enregistrement / retrait |
+| POST | `/api/library/check-dir` | Le dossier existe-t-il sur le serveur ? |
 | GET | `/api/stats?annee=` | Statistiques : registre des séances (année ou tout) et collection |
 | POST | `/api/playback/start` | Plan de lecture (direct / remux / transcodage) pour un film, une position, une piste audio, une qualité |
 | GET | `/api/hls/:session/index.m3u8` · `init.mp4` · `segNNNNN.m4s` | Flux HLS |

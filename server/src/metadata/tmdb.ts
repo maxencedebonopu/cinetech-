@@ -1,14 +1,43 @@
 // Client TMDB : recherche, choix du meilleur résultat, fiche complète, images.
 import type { Person, TmdbSearchResult } from '@cine/shared';
 import { config } from '../config.ts';
-import { getSettings } from '../db.ts';
+import { db, getSettings } from '../db.ts';
 import { similarity } from '../library/parse.ts';
 
 const API = 'https://api.themoviedb.org/3';
 export const IMG = 'https://image.tmdb.org/t/p';
 
+// La clé saisie dans les Réglages (base locale, jamais versionnée) passe avant celle du .env.
+function storedKey(): string {
+  const r = db.prepare(`SELECT value FROM settings WHERE key = 'tmdbKey'`).get() as { value: string } | undefined;
+  try { return r ? String(JSON.parse(r.value) ?? '').trim() : ''; } catch { return ''; }
+}
 export function tmdbKey() {
-  return config.tmdbKey;
+  return storedKey() || config.tmdbKey;
+}
+/** Ce que l'interface peut savoir de la clé : sa provenance et ses 4 derniers caractères, jamais la clé. */
+export function tmdbKeyInfo() {
+  const stored = storedKey();
+  const key = stored || config.tmdbKey;
+  return { enabled: key.length > 0, source: stored ? 'reglages' : key ? 'env' : null, hint: key ? key.slice(-4) : null } as const;
+}
+/** Vérifie une clé auprès de TMDB avant de l'enregistrer. */
+export async function checkTmdbKey(key: string): Promise<string | null> {
+  const k = key.trim();
+  if (!/^[A-Za-z0-9._-]{20,}$/.test(k)) return 'Format inattendu : une clé v3 fait 32 caractères, un jeton v4 commence par eyJ.';
+  const bearer = k.startsWith('eyJ');
+  const url = new URL(API + '/configuration');
+  if (!bearer) url.searchParams.set('api_key', k);
+  try {
+    const res = await fetch(url, { headers: { accept: 'application/json', ...(bearer ? { authorization: `Bearer ${k}` } : {}) } });
+    if (res.status === 401) return 'TMDB refuse cette clé.';
+    if (!res.ok) return `TMDB répond ${res.status}.`;
+    return null;
+  } catch { return 'TMDB injoignable : vérifier la connexion.'; }
+}
+export function setTmdbKey(key: string | null) {
+  if (key) db.prepare(`INSERT INTO settings(key, value) VALUES ('tmdbKey', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).run(JSON.stringify(key.trim()));
+  else db.prepare(`DELETE FROM settings WHERE key = 'tmdbKey'`).run();
 }
 export function tmdbEnabled() {
   return tmdbKey().length > 0;

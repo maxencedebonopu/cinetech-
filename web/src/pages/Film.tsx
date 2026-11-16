@@ -2,7 +2,7 @@
 // palette, « Dans votre collection » et correction de l'association TMDB.
 import { useEffect, useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { motion } from 'motion/react';
 import type { MovieDetail, MovieSummary, Person, TmdbSearchResult } from '@cine/shared';
 import { Play, ClockCounterClockwise, ArrowCounterClockwise, PencilSimple, MagnifyingGlass } from '@phosphor-icons/react';
@@ -121,7 +121,8 @@ export function Film() {
   const [film, setFilm] = useState<MovieDetail | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
   const [frame, setFrame] = useState<'open' | 'scope'>('open');
-  const [matchOpen, setMatchOpen] = useState(false);
+  const [params] = useSearchParams();
+  const [matchOpen, setMatchOpen] = useState(() => params.has('corriger')); // ?corriger : depuis les Réglages
   const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {

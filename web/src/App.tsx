@@ -9,16 +9,18 @@ import { Film } from './pages/Film';
 import { Library } from './pages/Library';
 import { Player } from './pages/Player';
 import { Stats } from './pages/Stats';
+import { Settings } from './pages/Settings';
 import { Search } from './components/Search';
+import { useSettings } from './lib/store';
 import './styles/app.css';
 import './styles/search.css';
 
-/** Écran pas encore construit : renvoie vers l'accueil. */
-function Soon({ title }: { title: string }) {
+/** Adresse inconnue. */
+function NotFound() {
   return (
     <main className="page wrap" style={{ paddingTop: 'var(--s-10)' }}>
-      <EmptyState reel="BOB. 00 — Entracte" title={title} action={<Link className="btn btn--secondary" to="/"><span className="btn__label">Retour à l'accueil</span></Link>}>
-        Cet écran arrive dans la suite de la phase 4.
+      <EmptyState reel="BOB. 00 — Entracte" title="Cette bobine n'existe pas." action={<Link className="btn btn--secondary" to="/"><span className="btn__label">Retour à l'accueil</span></Link>}>
+        L'adresse ne correspond à aucun écran.
       </EmptyState>
     </main>
   );
@@ -26,6 +28,7 @@ function Soon({ title }: { title: string }) {
 
 export function App() {
   const { pathname } = useLocation();
+  const { settings } = useSettings();
   const chrome = !pathname.startsWith('/design') && !pathname.startsWith('/lecture');
   useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
   return (
@@ -38,13 +41,13 @@ export function App() {
         <Route path="/bibliotheque" element={<Library />} />
         <Route path="/lecture/:id" element={<Player />} />
         <Route path="/statistiques" element={<Stats />} />
-        <Route path="/reglages" element={<Soon title="Les réglages arrivent." />} />
-        <Route path="*" element={<Soon title="Cette bobine n'existe pas." />} />
+        <Route path="/reglages" element={<Settings />} />
+        <Route path="*" element={<NotFound />} />
       </Routes>
       {chrome && <BottomBar />}
       <Search />
       <Vignette />
-      <Grain />
+      {settings?.grain !== false && <Grain />}
     </>
   );
 }

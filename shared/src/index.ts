@@ -282,3 +282,11 @@ export interface Stats {
   collection: CollectionStats;
   ratings: number[];          // nombre de films par note 1..5 (index 0 = 1 étoile)
 }
+
+export interface TmdbKeyInfo {
+  enabled: boolean;
+  /** « reglages » : saisie dans l'interface ; « env » : fichier .env. */
+  source: 'reglages' | 'env' | null;
+  /** 4 derniers caractères, pour reconnaître la clé sans l'exposer. */
+  hint: string | null;
+}

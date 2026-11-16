@@ -114,8 +114,8 @@ migrate();
 const DEFAULT_SETTINGS = {
   libraryDirs: config.initialLibraryDirs,
   tmdbLanguage: config.tmdbLanguage,
-  preferredAudioLanguage: 'fr',
-  preferredSubtitleLanguage: 'fr',
+  preferredAudioLanguage: 'original', // 'original' = piste par défaut du fichier (VO)
+  preferredSubtitleLanguage: 'fr',    // code langue, ou 'none'
   remoteQuality: 'original',
   grain: true,
   leader: true,

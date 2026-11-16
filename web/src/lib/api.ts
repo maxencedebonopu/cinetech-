@@ -1,4 +1,4 @@
-import type { MovieSummary, MovieDetail, TrickplayInfo, UserData, TmdbSearchResult, Health, Settings, Stats } from '@cine/shared';
+import type { MovieSummary, MovieDetail, TrickplayInfo, UserData, TmdbSearchResult, Health, Settings, Stats, TmdbKeyInfo, LibraryStatus, OrphanSubtitle } from '@cine/shared';
 
 export class ApiError extends Error {
   constructor(public status: number, public path: string, message: string) { super(message); }
@@ -14,7 +14,7 @@ export async function get<T>(path: string): Promise<T> {
 
 async function send<T>(method: string, path: string, body: unknown): Promise<T> {
   let res: Response;
-  try { res = await fetch(path, { method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); }
+  try { res = await fetch(path, body === undefined ? { method } : { method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); }
   catch { throw new ApiError(0, path, 'Serveur injoignable'); }
   if (!res.ok) throw new ApiError(res.status, path, (await res.json().catch(() => null))?.error ?? res.statusText);
   return res.json() as Promise<T>;
@@ -23,6 +23,15 @@ async function send<T>(method: string, path: string, body: unknown): Promise<T> 
 export const api = {
   health: () => get<Health>('/api/health'),
   settings: () => get<Settings>('/api/settings'),
+  putSettings: (patch: Partial<Settings>) => send<Settings>('PUT', '/api/settings', patch),
+  tmdbKey: () => get<TmdbKeyInfo>('/api/tmdb/key'),
+  setTmdbKey: (key: string) => send<TmdbKeyInfo>('PUT', '/api/tmdb/key', { key }),
+  removeTmdbKey: () => send<TmdbKeyInfo>('DELETE', '/api/tmdb/key', undefined),
+  checkDir: (path: string) => send<{ ok: boolean }>('POST', '/api/library/check-dir', { path }),
+  status: () => get<LibraryStatus>('/api/library/status'),
+  scan: () => send<LibraryStatus>('POST', '/api/library/scan', {}),
+  orphans: () => get<OrphanSubtitle[]>('/api/subtitles/orphans'),
+  assignSubtitle: (id: number, movieId: number | null) => send<{ ok: boolean }>('POST', `/api/subtitles/${id}/assign`, { movieId }),
   patchSubtitleOffset: (id: number, subtitleOffset: number) => send<UserData>('PATCH', `/api/movies/${id}/user`, { subtitleOffset }),
   patchUser: (id: number, patch: Partial<{ rating: number | null; watched: boolean; position: number }>) => send<UserData>('PATCH', `/api/movies/${id}/user`, patch),
   tmdbSearch: (q: string, year?: number | null) => get<TmdbSearchResult[]>(`/api/tmdb/search?q=${encodeURIComponent(q)}${year ? `&year=${year}` : ''}`),

@@ -5,7 +5,8 @@ import { listMovies, getMovieDetail, listOrphanSubtitles, updateUserData } from 
 import { scan, getStatus, enrichMovie, matchSubtitles, watch } from '../library/library.ts';
 import { externalToVtt, embeddedToVtt } from '../library/subtitles.ts';
 import { computeStats } from '../library/stats.ts';
-import { searchMovies, tmdbEnabled } from '../metadata/tmdb.ts';
+import { searchMovies, tmdbEnabled, tmdbKeyInfo, checkTmdbKey, setTmdbKey } from '../metadata/tmdb.ts';
+import fs from 'node:fs';
 import { ffmpegPath, ffprobePath, detectHwEncoders } from '../tools/ffmpeg.ts';
 
 export async function apiRoutes(app: FastifyInstance) {
@@ -66,6 +67,24 @@ export async function apiRoutes(app: FastifyInstance) {
     db.prepare(`UPDATE subtitles SET movie_id = ?, match_method = 'manual', match_score = 1 WHERE id = ? AND source = 'external'`).run(req.body.movieId, id);
     if (req.body.language) db.prepare(`UPDATE subtitles SET language = ?, language_source = 'manual' WHERE id = ?`).run(req.body.language, id);
     return { ok: true };
+  });
+
+  // ----- Clé TMDB (jamais renvoyée en clair) -----
+  app.get('/api/tmdb/key', async () => tmdbKeyInfo());
+  app.put<{ Body: { key: string } }>('/api/tmdb/key', async (req, reply) => {
+    const key = String(req.body?.key ?? '').trim();
+    const problem = await checkTmdbKey(key);
+    if (problem) return reply.code(400).send({ error: problem });
+    setTmdbKey(key);
+    void scan(); // complète les fiches manquantes
+    return tmdbKeyInfo();
+  });
+  app.delete('/api/tmdb/key', async () => { setTmdbKey(null); return tmdbKeyInfo(); });
+
+  // Vérifie un dossier avant de l'ajouter à la bibliothèque
+  app.post<{ Body: { path: string } }>('/api/library/check-dir', async (req) => {
+    const p = String(req.body?.path ?? '').trim();
+    try { return { ok: fs.statSync(p).isDirectory() }; } catch { return { ok: false }; }
   });
 
   // ----- Statistiques -----

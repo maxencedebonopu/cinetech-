@@ -179,11 +179,16 @@ export function Player() {
     Promise.all([api.movie(movieId), api.settings().catch(() => null)]).then(([f, s]) => {
       if (cancelled) return;
       setFilm(f); setSettings(s);
-      const audio = f.media?.audio.find((a) => a.default) ?? f.media?.audio[0];
+      // Audio : « original » garde la piste par défaut du fichier (VO), sinon la langue préférée hors commentaires.
+      const tracks = f.media?.audio ?? [];
+      const pref = s?.preferredAudioLanguage ?? 'original';
+      const audio = (pref !== 'original' ? tracks.find((a) => a.language === pref && !/comment/i.test(a.title ?? '')) : undefined)
+        ?? tracks.find((a) => a.default) ?? tracks[0];
       setAudioIndex(audio?.index ?? null);
       setOffset(f.user.subtitleOffset ?? 0);
       setQuality(s?.remoteQuality && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1' ? s.remoteQuality : 'original');
-      setSub(defaultSub(f, s?.preferredSubtitleLanguage ?? 'fr', audio?.language ?? null));
+      const subPref = s?.preferredSubtitleLanguage ?? 'fr';
+      setSub(subPref === 'none' ? null : defaultSub(f, subPref, audio?.language ?? null));
       if (s && !s.leader) setIntro('closing');
     }).catch((e) => setError(e.message));
     api.trickplay(movieId).then(setTrick).catch(() => {});
