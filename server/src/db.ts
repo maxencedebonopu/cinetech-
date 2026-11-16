@@ -91,6 +91,11 @@ const MIGRATIONS: string[] = [
     value TEXT NOT NULL
   );
   `,
+  // 2 — photogramme de repli (films sans fond TMDB) et sa palette
+  `
+  ALTER TABLE movies ADD COLUMN still TEXT;
+  ALTER TABLE movies ADD COLUMN still_palette TEXT;
+  `,
 ];
 
 function migrate() {

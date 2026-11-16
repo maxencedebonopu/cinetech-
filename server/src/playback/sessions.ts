@@ -124,7 +124,7 @@ async function subtitleCanvas(file: string, index: number, video: { width: numbe
   return null;
 }
 
-const TONEMAP_CPU = 'zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=hable:desat=0,zscale=t=bt709:m=bt709:r=tv';
+export const TONEMAP_CPU = 'zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=hable:desat=0,zscale=t=bt709:m=bt709:r=tv';
 const TONEMAP_OPENCL = 'format=p010,hwupload,tonemap_opencl=tonemap=hable:desat=0:format=nv12:t=bt709:m=bt709:p=bt709,hwdownload';
 
 async function buildArgs(file: string, media: MediaInfo, d: Decision, start: number) {

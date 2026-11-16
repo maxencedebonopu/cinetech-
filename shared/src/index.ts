@@ -91,6 +91,8 @@ export interface MovieSummary {
   poster: ImageRef | null;
   backdrop: ImageRef | null;
   logo: ImageRef | null;
+  /** Photogramme extrait du film : fond de repli quand TMDB n'en fournit pas. */
+  still: ImageRef | null;
   palette: Palette | null;
   matchStatus: MatchStatus;
   addedAt: string;

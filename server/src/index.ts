@@ -8,6 +8,7 @@ import { playbackRoutes } from './api/playback.ts';
 import { scan, watch, stopWatching } from './library/library.ts';
 import { wipeTranscodeDir, stopAll } from './playback/sessions.ts';
 import { generateMissingTrickplay } from './playback/trickplay.ts';
+import { generateMissingStills } from './library/stills.ts';
 import { ffmpegPath, detectHwEncoders, detectOpenclTonemap, killOrphanFfmpeg } from './tools/ffmpeg.ts';
 import { db } from './db.ts';
 
@@ -52,7 +53,8 @@ wipeTranscodeDir();
 void detectHwEncoders().then((hw) => console.log(`  Encodage matériel : ${hw.join(', ') || 'aucun (libx264)'}`));
 void detectOpenclTonemap().then((ok) => console.log(`  Conversion HDR → SDR : ${ok ? 'GPU (OpenCL)' : 'CPU'}`));
 watch();
-void scan().then(() => generateMissingTrickplay((m) => console.log('  ' + m)));
+const log = (m: string) => console.log('  ' + m);
+void scan().then(() => generateMissingStills(log)).then(() => generateMissingTrickplay(log));
 
 let stopping = false;
 async function shutdown() {

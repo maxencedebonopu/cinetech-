@@ -1,0 +1,98 @@
+/* ==========================================================================
+   Cinémathèque — tokens de dessin
+   Toute couleur, taille, durée ou courbe de l'interface vient d'ici.
+   ========================================================================== */
+
+:root {
+  /* ---- Fonds : noir chaud de salle, deux niveaux de surface ---------------- */
+  --c-bg: #0D0B09;
+  --c-surface-1: #16130F;
+  --c-surface-2: #1F1B16;
+  --c-surface-3: #29241D;          /* survol d'une surface 2 */
+
+  /* ---- Filets (lignes éditoriales, jamais du texte) ------------------------ */
+  --c-rule: #3A332A;
+  --c-rule-strong: #574E42;
+
+  /* ---- Texte : contraste mesuré sur --c-bg ---------------------------------
+     text-1 14,9:1 · text-2 7,0:1 · text-3 3,3:1 → réservé aux tailles ≥ 24 px,
+     aux numéros de page et aux éléments décoratifs (AA grand texte). */
+  --c-text-1: #EDE6D6;
+  --c-text-2: #A39A88;
+  --c-text-3: #6B6357;
+
+  /* ---- Accent global : velours rouge, avec parcimonie ----------------------
+     En aplat sous du texte ivoire (5,3:1), jamais comme couleur de texte courant. */
+  --c-velvet: #B3261E;
+  --c-velvet-hi: #C7332A;
+  --c-velvet-deep: #6E1712;
+
+  /* ---- Accent du film : tiré de l'affiche, contrasté AA sur le fond --------
+     Chaque page de film le redéfinit (style="--film-accent: #…"). */
+  --film-accent: #D8C7A3;
+  --c-film: var(--film-accent);
+  --c-film-soft: color-mix(in oklab, var(--film-accent) 18%, transparent);
+
+  --c-focus: #EDE6D6;               /* focus ivoire (clavier, télécommande) */
+  --c-scrim: rgb(13 11 9 / 0.72);
+
+  /* ---- Typographie --------------------------------------------------------- */
+  --font-display: 'Instrument Serif', 'Iowan Old Style', 'Times New Roman', serif;
+  --font-text: 'Geist Variable', 'Segoe UI Variable Text', system-ui, sans-serif;
+  --font-mono: 'Geist Mono Variable', 'Cascadia Mono', ui-monospace, monospace;
+
+  /* Échelle marquée (rapport ≈ 1,5 au-dessus du corps) */
+  --fs-mono: 0.6875rem;     /* 11 — données techniques, petites capitales espacées */
+  --fs-caption: 0.8125rem;  /* 13 */
+  --fs-body: 1rem;          /* 16 */
+  --fs-lead: 1.25rem;       /* 20 */
+  --fs-h4: 1.75rem;         /* 28 — serif */
+  --fs-h3: 2.625rem;        /* 42 */
+  --fs-h2: clamp(2.75rem, 1.6rem + 3.6vw, 4.75rem);   /* 44 → 76 */
+  --fs-h1: clamp(3.5rem, 1.5rem + 6.4vw, 8.5rem);     /* 56 → 136 */
+  --fs-display: clamp(4.25rem, 1rem + 10.5vw, 13rem); /* 68 → 208 */
+
+  --lh-display: 0.88;
+  --lh-title: 1;
+  --lh-text: 1.55;
+  --tracking-mono: 0.16em;
+  --tracking-display: -0.012em;
+
+  /* ---- Espacement (base 4) -------------------------------------------------- */
+  --s-1: 0.25rem;  --s-2: 0.5rem;  --s-3: 0.75rem; --s-4: 1rem;
+  --s-5: 1.5rem;   --s-6: 2rem;    --s-7: 3rem;    --s-8: 4rem;
+  --s-9: 6rem;     --s-10: 9rem;
+  --gutter: clamp(1rem, 4.2vw, 5rem);
+  --measure: 62ch;
+  --page-max: 108rem;
+
+  /* ---- Formes : angles vifs, pas de carte arrondie ------------------------- */
+  --radius: 2px;
+  --hair: 1px;
+
+  /* ---- Mouvement : longues sorties douces ---------------------------------- */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);      /* « expo out » */
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-curtain: cubic-bezier(0.76, 0, 0.24, 1);
+  --d-micro: 160ms;   /* retour immédiat : survol, appui */
+  --d-1: 420ms;
+  --d-2: 560ms;
+  --d-3: 700ms;
+  --d-kenburns: 28s;
+
+  /* ---- Plans ----------------------------------------------------------------- */
+  --z-content: 1;
+  --z-nav: 50;
+  --z-overlay: 100;
+  --z-leader: 500;
+  --z-texture: 900;
+}
+
+/* Taille de base fluide : 16 px sur téléphone et portable, ~19 px sur un écran 1920. */
+html { font-size: clamp(16px, 8.6px + 0.55vw, 20px); }
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --d-micro: 1ms; --d-1: 1ms; --d-2: 1ms; --d-3: 1ms; --d-kenburns: 0s;
+  }
+}

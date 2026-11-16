@@ -2,13 +2,13 @@
 
 Plateforme de streaming personnelle pour une collection de films numérisés (`.mkv`, `.mp4`, `.avi` + sous-titres `.srt`/`.ass`).
 
-> **État : phases 1 et 2 terminées** (bibliothèque, API, moteur de lecture). Métadonnées TMDB codées, en attente de la clé. Interface : phase 3. Banc d'essai de lecture : http://localhost:8765/dev/player
+> **État : phases 1 à 3 terminées** (bibliothèque, API, moteur de lecture, système de dessin). Métadonnées TMDB codées, en attente de la clé. Nuancier : http://localhost:8765/design · banc d'essai de lecture : http://localhost:8765/dev/player
 
 ## Organisation
 
 ```
 server/   API Fastify + TypeScript : scan, ffprobe/ffmpeg, TMDB, SQLite
-web/      Interface React + Vite (phase 3)
+web/      Interface React + Vite + Motion (système de dessin, puis écrans)
 shared/   Types partagés serveur ↔ interface
 data/     Créé au lancement : base SQLite, images en cache, fichiers temporaires (jamais versionné)
 ```
@@ -40,6 +40,9 @@ npm install          # une fois
 npm run scan         # scan complet en ligne de commande (affiche un bilan)
 npm start            # lance le serveur sur http://localhost:8765
 npm run dev          # serveur avec rechargement automatique
+npm run build        # construit l'interface (web/dist), servie ensuite par le serveur
+npm run dev:web      # interface en développement sur http://localhost:5173 (API relayée vers :8765)
+npm run shots -- /design dossier prefixe   # captures 1440 / 390 / 1920 px (Playwright)
 ```
 
 ## Fonctionnement de la bibliothèque
@@ -68,6 +71,17 @@ Le navigateur annonce ce qu'il sait décoder (`MediaSource.isTypeSupported`) ; l
 **Vignettes de survol** : planches JPEG 10×10 (une image toutes les 10 s), calculées en tâche de fond à basse priorité, en pause pendant une séance.
 
 **Progression** : position enregistrée toutes les 5 s, « vu » à 90 % (la position repart alors de zéro), compteur de visionnages et temps regardé (statistiques).
+
+## Système de dessin (phase 3)
+
+Démonstration complète : **`/design`** (le « nuancier »), composée avec les vrais films de la collection.
+
+- **Tokens** : `web/src/styles/tokens.css`. Couleurs (noir chaud `#0D0B09`, surfaces `#16130F` / `#1F1B16`, ivoire / pierre / cendre, velours `#B3261E` réservé à l'action principale, `--film-accent` redéfini par film), échelle typographique marquée, espacements, durées (420 / 560 / 700 ms) et courbes.
+- **Caractères** auto-hébergés : Instrument Serif (titres), Geist (texte), Geist Mono en petites capitales espacées (données). Icônes Phosphor au trait fin.
+- **Contraste** : ivoire 14,9:1, pierre 7,0:1 sur le fond ; la cendre (3,3:1) est réservée au grand texte et au décor ; l'accent de film est toujours ≥ 4,5:1.
+- **Composants** (`web/src/components`) : boutons (Projeter, secondaire, discret), boutons d'icône, sélecteur segmenté, interrupteur, curseur, champ de recherche, note, progression, badges, fiche technique mono à pointillés, nuancier, affiche 2:3 (avec affiche typographique de repli sur photogramme), image WebP + blurhash, Ken Burns, titre révélé ligne à ligne, cache letterbox, fuites de lumière, amorce 3-2-1, états vide / erreur / chargement, message passager.
+- **Textures** : grain animé (désactivable : `html[data-grain="off"]`), vignettage. Tout mouvement s'efface avec `prefers-reduced-motion`.
+- **Photogrammes** : pour chaque film, le serveur extrait en tâche de fond l'image la plus parlante parmi quatre (bandes noires retirées, HDR converti) ; elle sert de fond et de palette tant que TMDB n'a rien fourni.
 
 ## API (phases 1 et 2)
 

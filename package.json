@@ -3,12 +3,19 @@
   "private": true,
   "version": "0.1.0",
   "description": "Cinémathèque — plateforme de streaming personnelle",
-  "workspaces": ["shared", "server", "web"],
+  "workspaces": [
+    "shared",
+    "server",
+    "web"
+  ],
   "scripts": {
     "dev": "npm run dev -w server",
     "start": "npm run start -w server",
     "scan": "npm run scan -w server",
-    "typecheck": "npm run typecheck -w server"
+    "typecheck": "npm run typecheck -w server && npm run typecheck -w web",
+    "dev:web": "npm run dev -w web",
+    "build": "npm run build -w web",
+    "shots": "npm run shots -w web --"
   },
   "engines": {
     "node": ">=22"

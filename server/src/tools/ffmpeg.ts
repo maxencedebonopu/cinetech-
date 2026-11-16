@@ -77,7 +77,11 @@ export const FFMPEG_TAG = ['-metadata', 'comment=cinematheque'];
  */
 export function killOrphanFfmpeg(): number {
   if (process.platform !== 'win32') return 0;
-  const ps = `Get-CimInstance Win32_Process -Filter "Name='ffmpeg.exe'" | Where-Object { $_.CommandLine -like '*comment=cinematheque*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force; 1 }`;
+  // Seuls les vrais orphelins : ffmpeg marqués dont le process parent n'existe plus
+  // (un autre serveur Cinémathèque encore en marche garde ses séances).
+  const ps = `$all = Get-CimInstance Win32_Process; $ids = @{}; $all | ForEach-Object { $ids[[int]$_.ProcessId] = $true }; ` +
+    `$all | Where-Object { $_.Name -eq 'ffmpeg.exe' -and $_.CommandLine -like '*comment=cinematheque*' -and -not $ids[[int]$_.ParentProcessId] } | ` +
+    `ForEach-Object { Stop-Process -Id $_.ProcessId -Force; 1 }`;
   const r = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps], { encoding: 'utf8', windowsHide: true, timeout: 15000 });
   return (r.stdout ?? '').split(/\r?\n/).filter((l) => l.trim() === '1').length;
 }

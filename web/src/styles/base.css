@@ -1,0 +1,128 @@
+/* Base : remise à zéro, typographie, focus, textures de salle. */
+
+*, *::before, *::after { box-sizing: border-box; }
+* { margin: 0; }
+
+html {
+  background: var(--c-bg);
+  color: var(--c-text-1);
+  color-scheme: dark;
+  -webkit-text-size-adjust: 100%;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  scrollbar-color: var(--c-rule-strong) var(--c-bg);
+}
+
+body {
+  min-height: 100dvh;
+  background: var(--c-bg);
+  font-family: var(--font-text);
+  font-size: var(--fs-body);
+  line-height: var(--lh-text);
+  font-feature-settings: 'ss01', 'cv11';
+  overflow-x: hidden;
+}
+
+img, picture, video, canvas, svg { display: block; max-width: 100%; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; background: none; border: 0; padding: 0; }
+a { color: inherit; text-decoration: none; }
+ul[role='list'], ol[role='list'] { list-style: none; padding: 0; }
+h1, h2, h3, h4 { font-weight: 400; text-wrap: balance; }
+p { text-wrap: pretty; }
+
+::selection { background: var(--c-velvet); color: var(--c-text-1); }
+
+/* ---- Focus : ivoire, épais, visible depuis le canapé ---------------------- */
+:focus { outline: none; }
+:focus-visible {
+  outline: 2px solid var(--c-focus);
+  outline-offset: 4px;
+  border-radius: var(--radius);
+}
+
+/* ---- Familles et rôles typographiques ------------------------------------ */
+.t-display {
+  font-family: var(--font-display);
+  font-size: var(--fs-display);
+  line-height: var(--lh-display);
+  letter-spacing: var(--tracking-display);
+}
+.t-h1 { font-family: var(--font-display); font-size: var(--fs-h1); line-height: var(--lh-display); letter-spacing: var(--tracking-display); }
+.t-h2 { font-family: var(--font-display); font-size: var(--fs-h2); line-height: var(--lh-title); letter-spacing: var(--tracking-display); }
+.t-h3 { font-family: var(--font-display); font-size: var(--fs-h3); line-height: var(--lh-title); }
+.t-h4 { font-family: var(--font-display); font-size: var(--fs-h4); line-height: 1.1; }
+.t-lead { font-size: var(--fs-lead); line-height: 1.5; color: var(--c-text-1); }
+.t-body { font-size: var(--fs-body); }
+.t-caption { font-size: var(--fs-caption); color: var(--c-text-2); line-height: 1.45; }
+.t-italic { font-style: italic; }
+
+/* Données techniques : mono, petites capitales espacées */
+.t-mono {
+  font-family: var(--font-mono);
+  font-size: var(--fs-mono);
+  letter-spacing: var(--tracking-mono);
+  text-transform: uppercase;
+  font-feature-settings: 'zero', 'tnum';
+  line-height: 1.6;
+  color: var(--c-text-2);
+}
+.t-num { font-variant-numeric: tabular-nums; }
+
+/* Lettrine éditoriale */
+.dropcap::first-letter {
+  initial-letter: 3;
+  float: left;
+  font-family: var(--font-display);
+  font-size: 4.6em;
+  line-height: 0.78;
+  padding: 0.06em 0.1em 0 0;
+  color: var(--c-film);
+}
+
+/* Lien éditorial : soulignement qui se dessine */
+.link {
+  background: linear-gradient(currentColor, currentColor) 0 100% / 100% var(--hair) no-repeat;
+  transition: background-size var(--d-2) var(--ease-out), color var(--d-micro);
+  padding-bottom: 1px;
+}
+.link:hover { background-size: 0% var(--hair); background-position: 100% 100%; }
+
+.visually-hidden {
+  position: absolute !important; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+}
+
+/* ---- Textures de salle ----------------------------------------------------- */
+.grain {
+  position: fixed;
+  inset: -50%;
+  z-index: var(--z-texture);
+  pointer-events: none;
+  opacity: 0.075;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.93 0 0 0 0 0.9 0 0 0 0 0.84 0 0 0 1.6 -0.55'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  animation: grain 0.9s steps(6) infinite;
+}
+html[data-grain='off'] .grain { display: none; }
+@keyframes grain {
+  0% { transform: translate(0, 0); }
+  17% { transform: translate(-6%, 4%); }
+  33% { transform: translate(5%, -7%); }
+  50% { transform: translate(-3%, 8%); }
+  67% { transform: translate(8%, 2%); }
+  83% { transform: translate(-7%, -4%); }
+  100% { transform: translate(2%, 6%); }
+}
+
+.vignette {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-texture) - 1);
+  pointer-events: none;
+  background: radial-gradient(ellipse 120% 90% at 50% 45%, transparent 58%, rgb(0 0 0 / 0.5) 100%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .grain { animation: none; }
+  *, *::before, *::after { scroll-behavior: auto !important; }
+}
