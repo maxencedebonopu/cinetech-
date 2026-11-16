@@ -4,6 +4,23 @@ Plateforme de streaming personnelle pour une collection de films numérisés (`.
 
 > **État : phases 1 à 3 terminées** (bibliothèque, API, moteur de lecture, système de dessin). Métadonnées TMDB codées, en attente de la clé. Nuancier : http://localhost:8765/design · banc d'essai de lecture : http://localhost:8765/dev/player
 
+## Lancer depuis git
+
+```bash
+git clone https://github.com/maxencedebonopu/cinetech-.git Cinematheque
+cd Cinematheque
+start.bat
+```
+
+`start.bat` (double-clic possible) prépare puis lance le serveur sur http://localhost:8765 :
+
+1. **Mise à jour** : `git pull` en avance rapide, sauté si des fichiers suivis sont modifiés localement ou hors ligne (`start.bat --sans-maj` pour ne jamais mettre à jour).
+2. **Dépendances** : `npm ci` au premier lancement, puis seulement quand `package-lock.json` change.
+3. **Configuration** : `.env` créé depuis `.env.example` s'il manque (renseigner `LIBRARY_DIRS` et `TMDB_KEY`).
+4. **Interface** : reconstruite seulement quand `web/` ou `shared/` change.
+
+Premier lancement ≈ 1 min, les suivants quelques secondes. Prérequis : Node.js 22+ et ffmpeg (voir plus bas).
+
 ## Organisation
 
 ```
