@@ -159,7 +159,7 @@ function Arrivals({ items, reel }: { items: MovieSummary[]; reel: number }) {
       <RowHead reel={<ReelCode n={reel} label="Arrivages" />} title={<span id="h-new">Nouveaux <em>venus</em></span>} more={{ to: '/bibliotheque?tri=ajout', label: 'Tout voir' }} />
       <div className="arrivals">
         <div className="arrivals__poster" style={accentStyle(cur)}>
-          <Poster key={cur.id} movie={cur} caption={false} href={`/film/${cur.id}`} sizes="(max-width: 760px) 60vw, 26vw" />
+          <Poster key={cur.id} movie={cur} caption={false} href={`/film/${cur.id}`} sizes="(max-width: 760px) 60vw, 26vw" shared={false} />
         </div>
         <ol className="arrivals__list" role="list">
           {items.map((m, i) => (

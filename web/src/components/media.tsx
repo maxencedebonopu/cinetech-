@@ -2,6 +2,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import { decode } from 'blurhash';
+import { motion } from 'motion/react';
+import { EASE_OUT, D3 } from '../lib/motion';
 import type { ImageRef, MovieSummary } from '@cine/shared';
 import { imgUrl, srcSet } from '../lib/img';
 import { pad, runtime } from '../lib/format';
@@ -63,15 +65,17 @@ type PosterMovie = Pick<MovieSummary, 'id' | 'title' | 'year' | 'poster' | 'stil
  * Affiche 2:3. Sans affiche TMDB : affiche typographique composée sur le photogramme du film,
  * avec un passe-partout à la couleur du film.
  */
-export function Poster({ movie, sizes = '(max-width: 600px) 45vw, 220px', caption = true, number, href, onClick, focusable = true, eager }: {
+export function Poster({ movie, sizes = '(max-width: 600px) 45vw, 220px', caption = true, number, href, onClick, focusable = true, eager, shared = true }: {
   movie: PosterMovie; sizes?: string; caption?: boolean; number?: number; href?: string;
   onClick?: () => void; focusable?: boolean; eager?: boolean;
+  /** Transition partagée : l'affiche devient celle de la fiche du film. */
+  shared?: boolean;
 }) {
   const accent = movie.palette?.accent;
   const style = accent ? ({ ['--film-accent' as string]: accent } as CSSProperties) : undefined;
   const body = (
     <>
-      <span className="poster__frame">
+      <motion.span className="poster__frame" layoutId={shared ? `poster-${movie.id}` : undefined} transition={{ duration: D3, ease: EASE_OUT }}>
         {movie.poster ? (
           <Img image={movie.poster} sizes={sizes} eager={eager} />
         ) : (
@@ -91,7 +95,7 @@ export function Poster({ movie, sizes = '(max-width: 600px) 45vw, 220px', captio
           </span>
         )}
         {movie.watched && <span className="poster__seen t-mono">Vu</span>}
-      </span>
+      </motion.span>
       {caption && (
         <span className="poster__caption">
           <span className="poster__title">{movie.title}</span>

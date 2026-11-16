@@ -33,6 +33,8 @@ for (const s of sizes) {
   const sections = await page.$$(process.env.SEL ?? 'section[id]');
   for (const [i, el] of sections.entries()) {
     const id = (await el.getAttribute('id')) ?? `s${i + 1}`;
+    const box = await el.boundingBox();
+    if (!box || box.height < 4) continue; // zones vides (messages passagers…)
     await el.scrollIntoViewIfNeeded();
     await page.waitForTimeout(250);
     await el.screenshot({ path: path.join(outDir, `${prefix}-${s.name}-${id}.png`) });

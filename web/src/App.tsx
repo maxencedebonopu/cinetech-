@@ -5,6 +5,7 @@ import { TopNav, BottomBar } from './components/Nav';
 import { EmptyState } from './components/states';
 import { DesignPage } from './pages/DesignPage';
 import { Home } from './pages/Home';
+import { Film } from './pages/Film';
 import './styles/app.css';
 
 /** Écran pas encore construit : renvoie vers l'accueil. */
@@ -28,7 +29,7 @@ export function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/design" element={<DesignPage />} />
-        <Route path="/film/:id" element={<Soon title="La fiche du film arrive." />} />
+        <Route path="/film/:id" element={<Film />} />
         <Route path="/bibliotheque" element={<Soon title="La bibliothèque arrive." />} />
         <Route path="/lecture/:id" element={<Soon title="Le projecteur chauffe." />} />
         <Route path="/statistiques" element={<Soon title="Les statistiques arrivent." />} />

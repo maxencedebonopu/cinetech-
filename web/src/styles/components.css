@@ -388,3 +388,18 @@
 
 /* Affiche typographique : taille selon le mot le plus long, sans césure */
 .poster__ftitle { hyphens: manual; overflow-wrap: normal; font-size: var(--pt, 15cqi); }
+
+/* ---- Fenêtre modale ------------------------------------------------------------- */
+.dialog {
+  margin: auto; padding: 0; border: var(--hair) solid var(--c-rule-strong);
+  background: var(--c-surface-1); color: var(--c-text-1);
+  width: min(40rem, calc(100vw - 2 * var(--gutter))); max-height: min(44rem, 88vh);
+  border-radius: var(--radius);
+}
+.dialog--wide { width: min(56rem, calc(100vw - 2 * var(--gutter))); }
+.dialog::backdrop { background: rgb(5 4 3 / 0.78); }
+.dialog[open] { animation: dialogIn var(--d-2) var(--ease-out); }
+@keyframes dialogIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+.dialog__body { display: grid; gap: var(--s-5); padding: var(--s-6); }
+.dialog__head { display: flex; justify-content: space-between; align-items: start; gap: var(--s-4); padding-bottom: var(--s-4); border-bottom: var(--hair) solid var(--c-rule); }
+.dialog__title { font-family: var(--font-display); font-size: var(--fs-h4); line-height: 1.1; margin-top: var(--s-1); }

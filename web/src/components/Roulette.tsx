@@ -74,7 +74,7 @@ export function Roulette({ pool, onProject }: { pool: MovieSummary[]; onProject:
       <div className="roulette__panel" aria-live="polite">
         {phase === 'done' && pick ? (
           <div className="roulette__result">
-            <div className="roulette__poster"><Poster movie={pick} caption={false} sizes="160px" href={`/film/${pick.id}`} /></div>
+            <div className="roulette__poster"><Poster movie={pick} caption={false} sizes="160px" href={`/film/${pick.id}`} shared={false} /></div>
             <div className="roulette__info">
               <span className="t-mono">Ce soir, la bobine a choisi</span>
               <Link to={`/film/${pick.id}`} className="roulette__pick">{pick.title}</Link>
