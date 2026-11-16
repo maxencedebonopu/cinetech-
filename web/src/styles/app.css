@@ -67,3 +67,16 @@
 @media (max-width: 600px) {
   .rowhead__count { grid-row: 3; grid-column: 1 / -1; }
 }
+
+/* ---- Hors ligne ---- */
+.offline {
+  position: fixed; z-index: calc(var(--z-nav) + 1); left: 50%; top: calc(var(--s-3) + env(safe-area-inset-top)); transform: translateX(-50%);
+  max-width: calc(100vw - 2 * var(--s-4)); padding: 0.45rem 0.8rem; text-align: center;
+  background: var(--c-text-1); color: var(--c-bg);
+}
+.offline__short { display: none; }
+@media (max-width: 760px) {
+  .offline { top: auto; bottom: calc(4.1rem + env(safe-area-inset-bottom)); left: 0; right: 0; transform: none; max-width: none; padding: 0.4rem var(--s-4); }
+  .offline__more { display: none; }
+  .offline__short { display: inline; }
+}

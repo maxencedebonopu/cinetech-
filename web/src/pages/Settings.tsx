@@ -8,6 +8,7 @@ import type { Health, LibraryStatus, OrphanSubtitle, Settings as SettingsData, T
 import { api, ApiError } from '../lib/api';
 import { useMovies, useSettings, saveSettings, refreshMovies } from '../lib/store';
 import { pad, langName } from '../lib/format';
+import { isTv, setTv } from '../lib/spatial';
 import { ReelCode } from '../components/editorial';
 import { Button, Segmented, Toggle } from '../components/controls';
 import { ErrorState, Skeleton, Toast } from '../components/states';
@@ -282,6 +283,7 @@ export function Settings() {
   const [toast, setToast] = useState<string | null>(null);
   const [health, setHealth] = useState<Health | null>(null);
   const [active, setActive] = useState<string>(SECTIONS[0][0]);
+  const [tv, setTvState] = useState(isTv);
   const main = useRef<HTMLElement>(null);
   useEffect(() => { api.health().then(setHealth).catch(() => {}); }, []);
 
@@ -364,6 +366,10 @@ export function Settings() {
               <div className="set-row set-row--toggle">
                 <Toggle label="Grain de pellicule" hint="Texture animée sur toute l'interface. À couper sur un appareil lent."
                   checked={settings.grain} onChange={(v) => save({ grain: v }, v ? 'Grain activé.' : 'Grain coupé.')} />
+              </div>
+              <div className="set-row set-row--toggle">
+                <Toggle label="Mode téléviseur sur cet appareil" hint="Interface agrandie, navigation aux flèches de la télécommande, sans grain. Activé tout seul sur les téléviseurs reconnus."
+                  checked={tv} onChange={(v) => { setTv(v); setTvState(v); setToast(v ? 'Mode téléviseur activé sur cet appareil.' : 'Mode téléviseur retiré.'); }} />
               </div>
               <Row label="Mouvements" hint="Suivent le réglage « réduire les animations » de l'appareil.">
                 <span className="set-note">Automatique</span>

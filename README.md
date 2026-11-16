@@ -2,7 +2,7 @@
 
 Plateforme de streaming personnelle pour une collection de films numérisés (`.mkv`, `.mp4`, `.avi` + sous-titres `.srt`/`.ass`).
 
-> **État : phases 1 à 4 terminées** (bibliothèque, lecture, système de dessin, tous les écrans). Restent le mobile / TV / PWA (phase 5) et le déploiement distant (phase 6). Métadonnées TMDB codées, en attente de la clé. Nuancier : http://localhost:8765/design · banc d'essai de lecture : http://localhost:8765/dev/player
+> **État : phases 1 à 5 terminées** (bibliothèque, lecture, système de dessin, écrans, mobile / TV / PWA). Reste le déploiement distant (phase 6 : démarrage automatique, Tailscale, mot de passe). Métadonnées TMDB codées, en attente de la clé. Nuancier : http://localhost:8765/design · banc d'essai de lecture : http://localhost:8765/dev/player
 
 ## Lancer depuis git
 
@@ -109,6 +109,15 @@ Démonstration complète : **`/design`** (le « nuancier »), composée avec les
 - **Recherche** : `Ctrl K` ou `/` partout (sauf en projection), titres, cinéastes, années, fautes de frappe.
 - **Statistiques** `/statistiques` (« Le registre ») : temps, séances, films, plus longue série ; registre jour par jour ; heure et jour préférés ; films les plus revus et journal des séances ; décennies, genres, cinéastes ; état de la collection (définition, image, son, sous-titres, records) ; notes. Par année ou depuis le début (`?annee=2026`). Une séance de moins d'une minute ne compte pas.
 - **Réglages** `/reglages` (« La cabine ») : dossiers (vérifiés avant ajout, rescan avec progression), clé TMDB (vérifiée auprès de TMDB, stockée dans la base locale, jamais réaffichée : seuls ses 4 derniers caractères), langue des fiches, films à corriger, langue audio (VO par défaut) et sous-titres préférés, qualité à distance, amorce, grain, sous-titres orphelins à rattacher (film proposé si titre et année concordent), état du système.
+
+## Mobile, téléviseur, application installable (phase 5)
+
+- **Application installable (PWA)** : manifeste, icônes (régénérées par `node scripts/icons.mjs` dans `web/`), service worker généré au build avec la liste des fichiers. Sur téléphone : « Ajouter à l'écran d'accueil ». Le service worker exige **HTTPS ou localhost** : à distance, passer par l'adresse HTTPS de Tailscale (phase 6).
+- **Hors ligne** : l'interface, les affiches déjà vues et la dernière copie du catalogue restent disponibles ; un bandeau l'indique. La projection attend le réseau. Jamais mis en cache : flux vidéo, sous-titres, le reste de l'API.
+- **Cache HTTP** : fichiers à empreinte (`/assets`) gardés un an ; `index.html`, `sw.js`, manifeste toujours revalidés (une mise à jour arrive au rechargement suivant).
+- **Téléviseur** : détecté automatiquement (Tizen, webOS, Android TV, Fire TV…) ou forcé dans Réglages → Salle, ou avec `?tv=1` (`?tv=0` pour revenir). Interface agrandie et marges d'overscan, sans grain, focus large ; **navigation aux flèches** vers l'élément le plus proche dans la direction, l'élément choisi vient au milieu de l'écran ; OK ouvre, Retour revient (touches retour Samsung 10009 et LG 461 comprises). Le lecteur garde ses touches (voir « ? »).
+- **Mobile** : zones sûres (encoche, barre d'accueil), pas de surbrillance ni de zoom au double tap, plein écran du lecteur en paysage (Android ; l'iPhone utilise son lecteur plein écran).
+- Vérifications : `node scripts/pwa-check.mjs`, `node scripts/tv-check.mjs <prefixe>` (dans `web/`).
 
 ## API (phases 1 et 2)
 

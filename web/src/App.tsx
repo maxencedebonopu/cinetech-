@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import { Grain, Vignette } from './components/cinema';
 import { TopNav, BottomBar } from './components/Nav';
@@ -26,13 +26,26 @@ function NotFound() {
   );
 }
 
+/** Hors ligne : la collection reste consultable (copie gardée par le service worker), pas la projection. */
+function useOnline() {
+  const [online, setOnline] = useState(() => navigator.onLine);
+  useEffect(() => {
+    const on = () => setOnline(true), off = () => setOnline(false);
+    window.addEventListener('online', on); window.addEventListener('offline', off);
+    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); };
+  }, []);
+  return online;
+}
+
 export function App() {
   const { pathname } = useLocation();
   const { settings } = useSettings();
+  const online = useOnline();
   const chrome = !pathname.startsWith('/design') && !pathname.startsWith('/lecture');
   useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
   return (
     <>
+      {!online && <p className="offline t-mono" role="status">Hors ligne<span className="offline__more"> · la collection reste consultable, la projection attend le réseau</span><span className="offline__short"> · projection indisponible</span></p>}
       {chrome && <TopNav />}
       <Routes>
         <Route path="/" element={<Home />} />

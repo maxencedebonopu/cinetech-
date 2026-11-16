@@ -1,0 +1,28 @@
+/* Téléviseur (html.tv) et écrans tactiles */
+
+/* ---- Tactile ---- */
+a, button, [role='button'], select, label { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+@media (display-mode: standalone) {
+  /* application installée : pas de rebond qui révèle le fond du système */
+  html, body { overscroll-behavior-y: none; }
+}
+
+/* ---- Téléviseur : vu à 3 mètres ---- */
+html.tv { font-size: clamp(17px, 1.05vw + 4px, 30px); --gutter: max(5vw, 2rem); }
+html.tv .grain { display: none; }                     /* trop coûteux pour le processeur d'un téléviseur */
+html.tv.kbd, html.tv.kbd * { cursor: none !important; }
+
+/* focus : large, ivoire, toujours visible (pas de survol à la télécommande) */
+html.tv :focus-visible { outline: 3px solid var(--c-focus); outline-offset: 4px; }
+html.tv .poster:focus-visible .poster__frame,
+html.tv .contact:focus-visible .contact__img,
+html.tv .resume__item:focus-visible .resume__frame { outline-width: 4px; outline-offset: 5px; }
+html.tv .btn:focus-visible { outline-width: 3px; outline-offset: 4px; transform: scale(1.04); }
+html.tv .topnav a:focus-visible, html.tv .seg__opt:focus-visible { outline-offset: 6px; }
+
+/* ce qui n'apparaît qu'au survol doit apparaître au focus */
+html.tv .search__row:focus-within .search__play,
+html.tv .top__row:focus-visible { background: var(--c-surface-1); }
+
+/* pas de barre du bas ni d'invitations clavier d'ordinateur */
+html.tv .bottombar, html.tv kbd, html.tv .search__keys { display: none !important; }

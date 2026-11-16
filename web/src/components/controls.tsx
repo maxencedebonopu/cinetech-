@@ -3,6 +3,7 @@ import { useId, useState } from 'react';
 import type { ButtonHTMLAttributes, InputHTMLAttributes, KeyboardEvent, ReactNode } from 'react';
 import { motion } from 'motion/react';
 import { Star, MagnifyingGlass } from '@phosphor-icons/react';
+import { isTv } from '../lib/spatial';
 import { EASE_OUT, D2 } from '../lib/motion';
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -40,8 +41,10 @@ export function Segmented<T extends string>({ options, value, onChange, label }:
 }) {
   const id = useId();
   const move = (e: KeyboardEvent, dir: number) => {
-    e.preventDefault();
     const i = options.findIndex((o) => o.value === value);
+    // télécommande : pas de bouclage aux bords, la navigation spatiale prend le relais
+    if (isTv() && (i + dir < 0 || i + dir >= options.length)) return;
+    e.preventDefault();
     const next = options[(i + dir + options.length) % options.length];
     onChange(next.value);
     (e.currentTarget.parentElement?.querySelector(`[data-v="${next.value}"]`) as HTMLElement | null)?.focus();
@@ -60,8 +63,9 @@ export function Segmented<T extends string>({ options, value, onChange, label }:
             className={`seg__opt${on ? ' is-on' : ''}`}
             onClick={() => onChange(o.value)}
             onKeyDown={(e) => {
-              if (e.key === 'ArrowRight' || e.key === 'ArrowDown') move(e, 1);
-              if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') move(e, -1);
+              // haut / bas restent libres en mode TV pour quitter le sélecteur
+              if (e.key === 'ArrowRight' || (e.key === 'ArrowDown' && !isTv())) move(e, 1);
+              if (e.key === 'ArrowLeft' || (e.key === 'ArrowUp' && !isTv())) move(e, -1);
             }}
           >
             {o.icon && <span aria-hidden className="seg__icon">{o.icon}</span>}

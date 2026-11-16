@@ -34,7 +34,15 @@ app.get('/dev/hls.js', async (_req, reply) => reply.type('text/javascript').send
 // Interface buildée (phase 3+) ; repli SPA vers index.html
 if (fs.existsSync(config.webDist)) {
   // wildcard : les fichiers d'un nouveau build sont servis sans redémarrer le serveur
-  await app.register(fastifyStatic, { root: config.webDist, prefix: '/', wildcard: true });
+  await app.register(fastifyStatic, {
+    root: config.webDist, prefix: '/', wildcard: true, cacheControl: false,
+    // fichiers à empreinte : gardés un an ; index.html, sw.js, manifeste : toujours revalidés
+    setHeaders: (res, file) => {
+      if (/[\\/]assets[\\/]/.test(file)) res.setHeader('cache-control', 'public, max-age=31536000, immutable');
+      else res.setHeader('cache-control', 'no-cache');
+      if (file.endsWith('sw.js')) res.setHeader('service-worker-allowed', '/');
+    },
+  });
   app.setNotFoundHandler((req, reply) => {
     if (req.url.startsWith('/api/') || req.url.startsWith('/images/')) return reply.code(404).send({ error: 'Introuvable' });
     return reply.sendFile('index.html');

@@ -10,7 +10,13 @@ import '@fontsource-variable/geist-mono/wght.css';
 import './styles/tokens.css';
 import './styles/base.css';
 import './styles/components.css';
+import './styles/tv.css';
 import { App } from './App';
+import { registerServiceWorker } from './lib/pwa';
+import { initTv } from './lib/spatial';
+
+initTv();
+registerServiceWorker();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

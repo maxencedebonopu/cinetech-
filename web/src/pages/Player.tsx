@@ -19,6 +19,7 @@ import { Img } from '../components/media';
 import { Button, Segmented, Slider } from '../components/controls';
 import { ErrorState } from '../components/states';
 import { EASE_OUT, D1 } from '../lib/motion';
+import { isBackKey } from '../lib/spatial';
 import '../styles/player.css';
 
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
@@ -278,7 +279,14 @@ export function Player() {
   const jump = (d: number) => { const to = Math.max(0, (proj.current?.now() ?? 0) + d); void proj.current?.seek(to); setT(to); setFlash({ key: Date.now(), icon: d < 0 ? <ClockCounterClockwise /> : <ClockClockwise />, label: `${d > 0 ? '+' : '−'}${Math.abs(d)} s` }); };
   const seekTo = (to: number) => { setEnded(false); void proj.current?.seek(to); setT(to); };
   const setVol = (x: number) => { const vv = Math.max(0, Math.min(1, x)); v().volume = vv; v().muted = vv === 0; };
-  const toggleFull = () => { document.fullscreenElement ? document.exitFullscreen() : stageRef.current?.requestFullscreen().catch(() => {}); };
+  // Téléphone : le plein écran passe en paysage (l'API n'existe qu'en plein écran, et pas sur iPhone)
+  const toggleFull = () => {
+    if (document.fullscreenElement) { document.exitFullscreen().catch(() => {}); return; }
+    stageRef.current?.requestFullscreen().then(() => {
+      const o = screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> };
+      if (matchMedia('(pointer: coarse)').matches && o?.lock) o.lock('landscape').catch(() => {});
+    }).catch(() => {});
+  };
   const pip = () => { (document as any).pictureInPictureElement ? (document as any).exitPictureInPicture() : (v() as any).requestPictureInPicture?.().catch(() => {}); };
   const exit = () => { proj.current?.stop(); navigate(`/film/${movieId}`, { replace: true }); };
 
@@ -314,7 +322,7 @@ export function Player() {
       const target = e.target as HTMLElement;
       const inControls = target.closest?.('.pctrl, .ppanel, .phelp');
       poke();
-      if (e.key === 'Escape' || e.key === 'Backspace' || e.key === 'BrowserBack') {
+      if (isBackKey(e)) {
         e.preventDefault();
         if (help) setHelp(false); else if (menu) setMenu(null); else if (document.fullscreenElement) document.exitFullscreen(); else exit();
         return;
