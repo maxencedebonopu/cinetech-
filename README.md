@@ -2,7 +2,7 @@
 
 Plateforme de streaming personnelle pour une collection de films numérisés (`.mkv`, `.mp4`, `.avi` + sous-titres `.srt`/`.ass`).
 
-> **État : phases 1 à 3 terminées** (bibliothèque, API, moteur de lecture, système de dessin). Métadonnées TMDB codées, en attente de la clé. Nuancier : http://localhost:8765/design · banc d'essai de lecture : http://localhost:8765/dev/player
+> **État : phases 1 à 3 terminées, phase 4 bien avancée** (accueil, fiche film, bibliothèque, lecteur, recherche, statistiques ; restent les réglages). Métadonnées TMDB codées, en attente de la clé. Nuancier : http://localhost:8765/design · banc d'essai de lecture : http://localhost:8765/dev/player
 
 ## Lancer depuis git
 
@@ -100,6 +100,15 @@ Démonstration complète : **`/design`** (le « nuancier »), composée avec les
 - **Textures** : grain animé (désactivable : `html[data-grain="off"]`), vignettage. Tout mouvement s'efface avec `prefers-reduced-motion`.
 - **Photogrammes** : pour chaque film, le serveur extrait en tâche de fond l'image la plus parlante parmi quatre (bandes noires retirées, HDR converti) ; elle sert de fond et de palette tant que TMDB n'a rien fourni.
 
+## Écrans (phase 4)
+
+- **Accueil** `/` : film à l'affiche, reprise, nouveautés, séance du soir, décennie, roulette, jamais vus.
+- **Fiche film** `/film/:id` : palette du film, générique, fiche technique, pistes, correction TMDB, films voisins.
+- **Bibliothèque** `/bibliotheque` : affiches, planche-contact, chronologie ; filtres dans l'adresse.
+- **Lecteur** `/lecture/:id` : rideau et amorce, chapitres, vignettes, sous-titres réglables, raccourcis.
+- **Recherche** : `Ctrl K` ou `/` partout (sauf en projection), titres, cinéastes, années, fautes de frappe.
+- **Statistiques** `/statistiques` (« Le registre ») : temps, séances, films, plus longue série ; registre jour par jour ; heure et jour préférés ; films les plus revus et journal des séances ; décennies, genres, cinéastes ; état de la collection (définition, image, son, sous-titres, records) ; notes. Par année ou depuis le début (`?annee=2026`). Une séance de moins d'une minute ne compte pas.
+
 ## API (phases 1 et 2)
 
 | Méthode | Route | Rôle |
@@ -114,6 +123,7 @@ Démonstration complète : **`/design`** (le « nuancier »), composée avec les
 | GET | `/api/subtitles/:id.vtt` | Sous-titre en WebVTT |
 | GET | `/api/subtitles/orphans` · POST `/api/subtitles/:id/assign` | Sous-titres sans film / rattachement manuel |
 | GET/PUT | `/api/settings` | Réglages |
+| GET | `/api/stats?annee=` | Statistiques : registre des séances (année ou tout) et collection |
 | POST | `/api/playback/start` | Plan de lecture (direct / remux / transcodage) pour un film, une position, une piste audio, une qualité |
 | GET | `/api/hls/:session/index.m3u8` · `init.mp4` · `segNNNNN.m4s` | Flux HLS |
 | GET | `/api/movies/:id/file` | Lecture directe (Range) |

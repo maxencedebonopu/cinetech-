@@ -234,3 +234,51 @@ export interface Settings {
   grain: boolean;
   leader: boolean;
 }
+
+// ----- Statistiques -----
+export interface Count { label: string; count: number }
+
+export interface ViewingStats {
+  seconds: number;
+  sessions: number;
+  films: number;              // films distincts projetés
+  days: number;               // jours avec au moins une séance
+  longestStreak: number;      // jours consécutifs
+  /** Minutes par jour (date locale AAAA-MM-JJ) sur la période. */
+  daily: Record<string, number>;
+  /** Secondes par heure de début (0..23) et par jour (0 = lundi). */
+  byHour: number[];
+  byWeekday: number[];
+  top: { movieId: number; sessions: number; seconds: number }[];
+  decades: Count[];           // secondes par décennie des films vus
+  genres: Count[];
+  directors: Count[];
+  journal: { movieId: number; startedAt: string; seconds: number }[];
+}
+
+export interface CollectionStats {
+  films: number;
+  matched: number;
+  watched: number;
+  sizeBytes: number;
+  durationSeconds: number;
+  decades: { label: string; count: number; watched: number }[];
+  resolution: Count[];
+  dynamicRange: Count[];
+  videoCodecs: Count[];
+  audio: Count[];             // stéréo, 5.1, 7.1…
+  subtitles: Count[];         // films par langue de sous-titres
+  withoutSubtitles: number;
+  genres: Count[];
+  countries: Count[];
+  records: { label: string; movieId: number; value: string }[];
+}
+
+export interface Stats {
+  /** Années ayant au moins une séance, la plus récente d'abord. */
+  years: number[];
+  year: number | null;        // null = depuis le début
+  viewing: ViewingStats;
+  collection: CollectionStats;
+  ratings: number[];          // nombre de films par note 1..5 (index 0 = 1 étoile)
+}

@@ -4,6 +4,7 @@ import { db, getSettings, updateSettings } from '../db.ts';
 import { listMovies, getMovieDetail, listOrphanSubtitles, updateUserData } from '../library/repo.ts';
 import { scan, getStatus, enrichMovie, matchSubtitles, watch } from '../library/library.ts';
 import { externalToVtt, embeddedToVtt } from '../library/subtitles.ts';
+import { computeStats } from '../library/stats.ts';
 import { searchMovies, tmdbEnabled } from '../metadata/tmdb.ts';
 import { ffmpegPath, ffprobePath, detectHwEncoders } from '../tools/ffmpeg.ts';
 
@@ -66,6 +67,10 @@ export async function apiRoutes(app: FastifyInstance) {
     if (req.body.language) db.prepare(`UPDATE subtitles SET language = ?, language_source = 'manual' WHERE id = ?`).run(req.body.language, id);
     return { ok: true };
   });
+
+  // ----- Statistiques -----
+  app.get<{ Querystring: { annee?: string } }>('/api/stats', async (req) =>
+    computeStats(req.query.annee && /^\d{4}$/.test(req.query.annee) ? Number(req.query.annee) : null));
 
   // ----- Réglages -----
   app.get('/api/settings', async () => getSettings());

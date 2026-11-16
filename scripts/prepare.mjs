@@ -47,8 +47,10 @@ const lockStamp = path.join(ROOT, 'node_modules', '.cine-lock');
 const lockHash = hash(lock);
 if (!fs.existsSync(lockStamp) || fs.readFileSync(lockStamp, 'utf8') !== lockHash) {
   step('Installation des dépendances (quelques minutes la première fois)…');
-  run('npm ci --no-audit --no-fund --loglevel=error');
-  fs.writeFileSync(lockStamp, lockHash);
+  // npm install plutôt que npm ci : ci efface d'abord node_modules, ce qui échoue sous Windows
+  // dès qu'un fichier est ouvert, et laisse alors une installation à moitié faite.
+  run('npm install --no-audit --no-fund --loglevel=error');
+  fs.writeFileSync(lockStamp, hash(lock)); // l'installation peut retoucher le verrou
 }
 
 // 3. Configuration : .env créé depuis l'exemple

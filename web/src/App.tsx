@@ -8,6 +8,7 @@ import { Home } from './pages/Home';
 import { Film } from './pages/Film';
 import { Library } from './pages/Library';
 import { Player } from './pages/Player';
+import { Stats } from './pages/Stats';
 import { Search } from './components/Search';
 import './styles/app.css';
 import './styles/search.css';
@@ -36,7 +37,7 @@ export function App() {
         <Route path="/film/:id" element={<Film />} />
         <Route path="/bibliotheque" element={<Library />} />
         <Route path="/lecture/:id" element={<Player />} />
-        <Route path="/statistiques" element={<Soon title="Les statistiques arrivent." />} />
+        <Route path="/statistiques" element={<Stats />} />
         <Route path="/reglages" element={<Soon title="Les réglages arrivent." />} />
         <Route path="*" element={<Soon title="Cette bobine n'existe pas." />} />
       </Routes>

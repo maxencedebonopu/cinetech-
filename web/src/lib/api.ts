@@ -1,4 +1,4 @@
-import type { MovieSummary, MovieDetail, TrickplayInfo, UserData, TmdbSearchResult, Health, Settings } from '@cine/shared';
+import type { MovieSummary, MovieDetail, TrickplayInfo, UserData, TmdbSearchResult, Health, Settings, Stats } from '@cine/shared';
 
 export class ApiError extends Error {
   constructor(public status: number, public path: string, message: string) { super(message); }
@@ -30,4 +30,5 @@ export const api = {
   movies: () => get<MovieSummary[]>('/api/movies'),
   movie: (id: number) => get<MovieDetail>(`/api/movies/${id}`),
   trickplay: (id: number) => get<TrickplayInfo>(`/api/movies/${id}/trickplay`),
+  stats: (year?: string | null) => get<Stats>(`/api/stats${year ? `?annee=${encodeURIComponent(year)}` : ''}`),
 };
