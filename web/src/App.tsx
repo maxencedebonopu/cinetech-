@@ -1,24 +1,41 @@
-import { Routes, Route, Link } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import { Grain, Vignette } from './components/cinema';
-import { DesignPage } from './pages/DesignPage';
+import { TopNav, BottomBar } from './components/Nav';
 import { EmptyState } from './components/states';
+import { DesignPage } from './pages/DesignPage';
+import { Home } from './pages/Home';
+import './styles/app.css';
+
+/** Écran pas encore construit : renvoie vers l'accueil. */
+function Soon({ title }: { title: string }) {
+  return (
+    <main className="page wrap" style={{ paddingTop: 'var(--s-10)' }}>
+      <EmptyState reel="BOB. 00 — Entracte" title={title} action={<Link className="btn btn--secondary" to="/"><span className="btn__label">Retour à l'accueil</span></Link>}>
+        Cet écran arrive dans la suite de la phase 4.
+      </EmptyState>
+    </main>
+  );
+}
 
 export function App() {
+  const { pathname } = useLocation();
+  const chrome = !pathname.startsWith('/design') && !pathname.startsWith('/lecture');
+  useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
   return (
     <>
+      {chrome && <TopNav />}
       <Routes>
+        <Route path="/" element={<Home />} />
         <Route path="/design" element={<DesignPage />} />
-        <Route
-          path="*"
-          element={
-            <main style={{ padding: 'var(--s-9) var(--gutter)' }}>
-              <EmptyState reel="BOB. 00 — Entracte" title="Les écrans arrivent en phase 4." action={<Link className="link" to="/design">Voir le nuancier</Link>}>
-                Le système de dessin est prêt : couleurs, typographie, composants et mouvement.
-              </EmptyState>
-            </main>
-          }
-        />
+        <Route path="/film/:id" element={<Soon title="La fiche du film arrive." />} />
+        <Route path="/bibliotheque" element={<Soon title="La bibliothèque arrive." />} />
+        <Route path="/lecture/:id" element={<Soon title="Le projecteur chauffe." />} />
+        <Route path="/statistiques" element={<Soon title="Les statistiques arrivent." />} />
+        <Route path="/reglages" element={<Soon title="Les réglages arrivent." />} />
+        <Route path="*" element={<Soon title="Cette bobine n'existe pas." />} />
       </Routes>
+      {chrome && <BottomBar />}
       <Vignette />
       <Grain />
     </>

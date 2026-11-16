@@ -30,9 +30,9 @@ for (const s of sizes) {
   for (let y = 0; y < h; y += s.height * 0.8) { await page.evaluate((y) => window.scrollTo(0, y), y); await page.waitForTimeout(120); }
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(900);
-  const sections = await page.$$('section[id]');
-  for (const el of sections) {
-    const id = await el.getAttribute('id');
+  const sections = await page.$$(process.env.SEL ?? 'section[id]');
+  for (const [i, el] of sections.entries()) {
+    const id = (await el.getAttribute('id')) ?? `s${i + 1}`;
     await el.scrollIntoViewIfNeeded();
     await page.waitForTimeout(250);
     await el.screenshot({ path: path.join(outDir, `${prefix}-${s.name}-${id}.png`) });

@@ -62,11 +62,12 @@ function toSummary(r: any, subLangs: string[]): MovieSummary {
     addedAt: r.added_at,
     watched: !!r.watched,
     progress: duration && r.position ? Math.min(1, r.position / duration) : 0,
+    lastPlayedAt: r.last_played_at ?? null,
     subtitleLanguages: subLangs,
   };
 }
 
-const SUMMARY_SQL = `SELECT m.*, u.position, u.watched FROM movies m LEFT JOIN user_data u ON u.movie_id = m.id WHERE m.missing = 0`;
+const SUMMARY_SQL = `SELECT m.*, u.position, u.watched, (SELECT MAX(started_at) FROM plays p WHERE p.movie_id = m.id) AS last_played_at FROM movies m LEFT JOIN user_data u ON u.movie_id = m.id WHERE m.missing = 0`;
 
 function subLangMap() {
   const rows = db.prepare(`SELECT movie_id, language FROM subtitles WHERE movie_id IS NOT NULL AND language IS NOT NULL GROUP BY movie_id, language`).all() as any[];
@@ -81,7 +82,7 @@ export function listMovies(): MovieSummary[] {
 }
 
 export function getMovieDetail(id: number): MovieDetail | null {
-  const r = db.prepare(`SELECT m.*, u.position, u.watched FROM movies m LEFT JOIN user_data u ON u.movie_id = m.id WHERE m.id = ?`).get(id) as any;
+  const r = db.prepare(`SELECT m.*, u.position, u.watched, (SELECT MAX(started_at) FROM plays p WHERE p.movie_id = m.id) AS last_played_at FROM movies m LEFT JOIN user_data u ON u.movie_id = m.id WHERE m.id = ?`).get(id) as any;
   if (!r) return null;
   const subs = (db.prepare(`SELECT * FROM subtitles WHERE movie_id = ? ORDER BY source DESC, language = 'fr' DESC, language, forced`).all(id) as any[]).map(toSubtitle);
   const user = db.prepare(`SELECT * FROM user_data WHERE movie_id = ?`).get(id);

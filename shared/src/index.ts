@@ -98,6 +98,8 @@ export interface MovieSummary {
   addedAt: string;
   watched: boolean;
   progress: number;        // 0..1
+  /** Dernière séance (lancement), ISO ; null si jamais projeté. */
+  lastPlayedAt: string | null;
   subtitleLanguages: string[];
 }
 
