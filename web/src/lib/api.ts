@@ -1,4 +1,4 @@
-import type { MovieSummary, MovieDetail, TrickplayInfo, UserData, TmdbSearchResult, Health } from '@cine/shared';
+import type { MovieSummary, MovieDetail, TrickplayInfo, UserData, TmdbSearchResult, Health, Settings } from '@cine/shared';
 
 export class ApiError extends Error {
   constructor(public status: number, public path: string, message: string) { super(message); }
@@ -22,6 +22,8 @@ async function send<T>(method: string, path: string, body: unknown): Promise<T> 
 
 export const api = {
   health: () => get<Health>('/api/health'),
+  settings: () => get<Settings>('/api/settings'),
+  patchSubtitleOffset: (id: number, subtitleOffset: number) => send<UserData>('PATCH', `/api/movies/${id}/user`, { subtitleOffset }),
   patchUser: (id: number, patch: Partial<{ rating: number | null; watched: boolean; position: number }>) => send<UserData>('PATCH', `/api/movies/${id}/user`, patch),
   tmdbSearch: (q: string, year?: number | null) => get<TmdbSearchResult[]>(`/api/tmdb/search?q=${encodeURIComponent(q)}${year ? `&year=${year}` : ''}`),
   match: (id: number, tmdbId: number) => send<MovieDetail>('POST', `/api/movies/${id}/match`, { tmdbId }),

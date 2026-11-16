@@ -1,0 +1,22 @@
+// Choix d'un sous-titre image au lecteur : le flux doit passer en transcodage avec incrustation.
+import { chromium } from 'playwright';
+const [id = '11', out] = process.argv.slice(2);
+const base = process.env.WEB_URL ?? 'http://localhost:5173';
+const browser = await chromium.launch({ channel: 'msedge', args: ['--autoplay-policy=no-user-gesture-required'] });
+const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+await page.goto(`${base}/film/${id}`, { waitUntil: 'networkidle' });
+await page.getByRole('button', { name: /Projeter|Reprendre/ }).first().click();
+await page.waitForFunction(() => document.querySelector('.player.is-live'), null, { timeout: 30000 });
+await page.keyboard.press('5'); await page.waitForTimeout(4000);
+await page.mouse.move(700, 400); await page.mouse.move(720, 420);
+await page.locator('[aria-label="Sous-titres"]').click();
+await page.locator('.pchoice', { hasText: 'Incrustation' }).first().click();
+await page.waitForTimeout(500);
+await page.screenshot({ path: `${out}-menu.png` });
+await page.keyboard.press('Escape');
+const t0 = Date.now();
+await page.waitForFunction(() => /Incrustation/.test(document.querySelector('.ptop__mode')?.textContent ?? '') && !document.querySelector('video').paused && document.querySelector('video').readyState >= 3, null, { timeout: 30000 });
+console.log('incrustation active en', ((Date.now() - t0) / 1000).toFixed(1), 's ·', await page.locator('.ptop__mode').getAttribute('title'));
+await page.waitForTimeout(6000);
+await page.screenshot({ path: `${out}-image.png` });
+await browser.close();

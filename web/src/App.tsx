@@ -7,6 +7,7 @@ import { DesignPage } from './pages/DesignPage';
 import { Home } from './pages/Home';
 import { Film } from './pages/Film';
 import { Library } from './pages/Library';
+import { Player } from './pages/Player';
 import './styles/app.css';
 
 /** Écran pas encore construit : renvoie vers l'accueil. */
@@ -32,7 +33,7 @@ export function App() {
         <Route path="/design" element={<DesignPage />} />
         <Route path="/film/:id" element={<Film />} />
         <Route path="/bibliotheque" element={<Library />} />
-        <Route path="/lecture/:id" element={<Soon title="Le projecteur chauffe." />} />
+        <Route path="/lecture/:id" element={<Player />} />
         <Route path="/statistiques" element={<Soon title="Les statistiques arrivent." />} />
         <Route path="/reglages" element={<Soon title="Les réglages arrivent." />} />
         <Route path="*" element={<Soon title="Cette bobine n'existe pas." />} />

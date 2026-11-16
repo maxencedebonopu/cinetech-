@@ -44,7 +44,10 @@ export async function playbackRoutes(app: FastifyInstance) {
     if (!p) return reply.code(s.error ? 500 : 404).send({ error: s.error ?? 'Segment indisponible' });
     const type = file.endsWith('.m3u8') ? 'application/vnd.apple.mpegurl' : file.endsWith('.mp4') ? 'video/mp4' : 'video/iso.segment';
     reply.header('content-type', type).header('cache-control', file.endsWith('.m3u8') ? 'no-cache' : 'private, max-age=3600');
-    return reply.send(fs.readFileSync(p));
+    if (file.endsWith('.m3u8')) return reply.send(fs.readFileSync(p));
+    // Segments (souvent 5 à 20 Mo) : envoyés en flux, avec leur taille
+    reply.header('content-length', fs.statSync(p).size);
+    return reply.send(fs.createReadStream(p));
   });
 
   // ----- Lecture directe (avec Range) -----
