@@ -33,7 +33,8 @@ app.get('/dev/hls.js', async (_req, reply) => reply.type('text/javascript').send
 
 // Interface buildée (phase 3+) ; repli SPA vers index.html
 if (fs.existsSync(config.webDist)) {
-  await app.register(fastifyStatic, { root: config.webDist, prefix: '/', wildcard: false });
+  // wildcard : les fichiers d'un nouveau build sont servis sans redémarrer le serveur
+  await app.register(fastifyStatic, { root: config.webDist, prefix: '/', wildcard: true });
   app.setNotFoundHandler((req, reply) => {
     if (req.url.startsWith('/api/') || req.url.startsWith('/images/')) return reply.code(404).send({ error: 'Introuvable' });
     return reply.sendFile('index.html');

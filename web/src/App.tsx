@@ -6,6 +6,7 @@ import { EmptyState } from './components/states';
 import { DesignPage } from './pages/DesignPage';
 import { Home } from './pages/Home';
 import { Film } from './pages/Film';
+import { Library } from './pages/Library';
 import './styles/app.css';
 
 /** Écran pas encore construit : renvoie vers l'accueil. */
@@ -30,7 +31,7 @@ export function App() {
         <Route path="/" element={<Home />} />
         <Route path="/design" element={<DesignPage />} />
         <Route path="/film/:id" element={<Film />} />
-        <Route path="/bibliotheque" element={<Soon title="La bibliothèque arrive." />} />
+        <Route path="/bibliotheque" element={<Library />} />
         <Route path="/lecture/:id" element={<Soon title="Le projecteur chauffe." />} />
         <Route path="/statistiques" element={<Soon title="Les statistiques arrivent." />} />
         <Route path="/reglages" element={<Soon title="Les réglages arrivent." />} />

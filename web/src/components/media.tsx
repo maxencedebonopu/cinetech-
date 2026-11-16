@@ -8,6 +8,17 @@ import type { ImageRef, MovieSummary } from '@cine/shared';
 import { imgUrl, srcSet } from '../lib/img';
 import { pad, runtime } from '../lib/format';
 
+// Décodage mis en cache : une grille virtualisée remonte sans cesse les mêmes affiches.
+const decoded = new Map<string, ImageData | null>();
+function decodeOnce(hash: string, w: number, h: number) {
+  const key = `${hash}|${w}x${h}`;
+  if (!decoded.has(key)) {
+    try { decoded.set(key, new ImageData(new Uint8ClampedArray(decode(hash, w, h)), w, h)); } catch { decoded.set(key, null); }
+    if (decoded.size > 2000) decoded.delete(decoded.keys().next().value!);
+  }
+  return decoded.get(key)!;
+}
+
 export function Blurhash({ hash, ratio, className = '' }: { hash: string; ratio: number; className?: string }) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
@@ -15,13 +26,8 @@ export function Blurhash({ hash, ratio, className = '' }: { hash: string; ratio:
     if (!c || !hash) return;
     const w = 32, h = Math.max(1, Math.round(32 / ratio));
     c.width = w; c.height = h;
-    try {
-      const px = decode(hash, w, h);
-      const ctx = c.getContext('2d')!;
-      const img = ctx.createImageData(w, h);
-      img.data.set(px);
-      ctx.putImageData(img, 0, 0);
-    } catch { /* hash invalide : le fond de surface suffit */ }
+    const img = decodeOnce(hash, w, h);
+    if (img) c.getContext('2d')!.putImageData(img, 0, 0);
   }, [hash, ratio]);
   return <canvas ref={ref} className={`blurhash ${className}`} aria-hidden />;
 }
@@ -72,10 +78,12 @@ export function Poster({ movie, sizes = '(max-width: 600px) 45vw, 220px', captio
   shared?: boolean;
 }) {
   const accent = movie.palette?.accent;
+  // Sans transition partagée, un simple <span> : pas de mesure de mise en page à chaque rendu
+  const Frame = (shared ? motion.span : 'span') as typeof motion.span;
   const style = accent ? ({ ['--film-accent' as string]: accent } as CSSProperties) : undefined;
   const body = (
     <>
-      <motion.span className="poster__frame" layoutId={shared ? `poster-${movie.id}` : undefined} transition={{ duration: D3, ease: EASE_OUT }}>
+      <Frame className="poster__frame" {...(shared ? { layoutId: `poster-${movie.id}`, transition: { duration: D3, ease: EASE_OUT } } : {})}>
         {movie.poster ? (
           <Img image={movie.poster} sizes={sizes} eager={eager} />
         ) : (
@@ -95,7 +103,7 @@ export function Poster({ movie, sizes = '(max-width: 600px) 45vw, 220px', captio
           </span>
         )}
         {movie.watched && <span className="poster__seen t-mono">Vu</span>}
-      </motion.span>
+      </Frame>
       {caption && (
         <span className="poster__caption">
           <span className="poster__title">{movie.title}</span>
