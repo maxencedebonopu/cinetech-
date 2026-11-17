@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import type { Health } from '@cine/shared';
 import { db, getSettings, updateSettings } from '../db.ts';
 import { listMovies, getMovieDetail, listOrphanSubtitles, updateUserData } from '../library/repo.ts';
-import { scan, getStatus, enrichMovie, matchSubtitles, watch } from '../library/library.ts';
+import { scan, getStatus, enrichMovie, enrichFromWiki, matchSubtitles, watch } from '../library/library.ts';
 import { externalToVtt, embeddedToVtt } from '../library/subtitles.ts';
 import { computeStats } from '../library/stats.ts';
 import { searchMovies, tmdbEnabled, tmdbKeyInfo, checkTmdbKey, setTmdbKey } from '../metadata/tmdb.ts';
@@ -41,6 +41,17 @@ export async function apiRoutes(app: FastifyInstance) {
     const id = Number(req.params.id);
     if (!db.prepare('SELECT 1 FROM movies WHERE id = ?').get(id)) return reply.code(404).send({ error: 'Film introuvable' });
     await enrichMovie(id, req.body.tmdbId, 'manual', 1);
+    matchSubtitles();
+    return getMovieDetail(id);
+  });
+
+  // Correction manuelle sans clé TMDB : fiche Wikidata choisie à la main (Q-identifiant)
+  app.post<{ Params: { id: string }; Body: { qid: string } }>('/api/movies/:id/wiki', async (req, reply) => {
+    const id = Number(req.params.id);
+    const qid = String(req.body?.qid ?? '').trim().toUpperCase();
+    if (!/^Q\d+$/.test(qid)) return reply.code(400).send({ error: 'Identifiant Wikidata attendu (Q123…)' });
+    if (!db.prepare('SELECT 1 FROM movies WHERE id = ?').get(id)) return reply.code(404).send({ error: 'Film introuvable' });
+    await enrichFromWiki(id, qid, 'manual');
     matchSubtitles();
     return getMovieDetail(id);
   });

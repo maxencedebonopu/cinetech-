@@ -33,6 +33,20 @@ Double-cliquer une fois sur **`raccourcis.bat`** :
 
 Ensuite : double-clic sur « Cinémathèque » sur le Bureau. Le serveur tourne dans la fenêtre réduite de la barre des tâches ; la fermer arrête le serveur. Sans `.bat` : `node scripts/raccourcis.mjs` (`--sans-demarrage`, `--retirer`). Les raccourcis pointent vers ce dossier : à refaire si le dossier est déplacé. Le démarrage automatique est un simple raccourci dans le dossier Démarrage de Windows (`Win + R` → `shell:startup`), sans droits administrateur.
 
+## Ajouter des films
+
+Copier les fichiers dans le dossier de films : le serveur les repère seul (quelques secondes après la fin de la copie), puis analyse, photogramme et fiche Wikipédia suivent (~40 s par film). Pour tout vérifier d'un coup :
+
+```bash
+node scripts/nouveaux-films.mjs
+```
+
+Il extrait les sous-titres livrés en `.zip` dans `Subtitles\`, relance un scan, attend les fiches et liste ce qui reste à regarder (fiche introuvable, sans affiche, sans sous-titres français, sous-titres sans film). Une mauvaise fiche se corrige avec `--chercher "Titre année"` puis `--corriger <id> <Q…>` (identifiant Wikidata). Dans Claude Code, `/nouveaux-films` fait tout cela et corrige ce qu'il peut. Le titre affiché est toujours celui du nom de fichier.
+
+**Veille** : PC en veille = Cinémathèque injoignable (serveur et Tailscale suspendus). Pour un accès permanent, régler la mise en veille sur « Jamais » quand le PC est branché (Paramètres → Système → Alimentation), l'écran peut s'éteindre.
+
+**Donner accès à quelqu'un** : console Tailscale → Machines → « … » du PC → **Share…** ; la personne installe Tailscale avec son propre compte, accepte l'invitation, ouvre l'adresse `https://…ts.net` et entre le mot de passe. Elle ne voit que ce PC ; retirer le partage (ou changer le mot de passe) coupe l'accès.
+
 ## Accès à distance : Tailscale et mot de passe
 
 Le serveur n'est jamais exposé sur Internet : les appareils se rejoignent par **Tailscale**, un réseau privé chiffré entre vos appareils, sans ouvrir de port sur la box.

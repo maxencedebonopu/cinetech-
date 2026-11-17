@@ -174,7 +174,7 @@ export async function enrichMovie(movieId: number, tmdbId: number, matchStatus: 
 }
 
 /** Fiche Wikidata / Wikipédia (sans clé TMDB) : affiche, synopsis, générique. */
-async function enrichFromWiki(movieId: number, qid: string, matchStatus: string) {
+export async function enrichFromWiki(movieId: number, qid: string, matchStatus: string) {
   const meta = await wikiMovie(qid);
   await store(movieId, meta, `w${qid}`, matchStatus, null, 'wiki', qid);
 }
@@ -187,12 +187,14 @@ async function store(movieId: number, meta: MovieMetadata, base: string, matchSt
   const backdropRef = backdrop ? await storeImage(backdrop, `${base}-backdrop`, 'backdrop') : null;
   const logoRef = logo ? await storeImage(logo, `${base}-logo`, 'logo') : null;
   const palette = poster ? await extractPalette(poster) : null;
+  // Titre affiché : celui du nom de fichier, jamais la traduction de la fiche (« Psycho », pas « Psychose »)
+  const fileTitle = (db.prepare('SELECT parsed_title FROM movies WHERE id = ?').get(movieId) as { parsed_title: string | null } | undefined)?.parsed_title;
 
   db.prepare(`UPDATE movies SET tmdb_id = ?, match_status = ?, match_score = ?, title = ?, original_title = ?, year = ?, release_date = ?, overview = ?, tagline = ?,
       runtime = ?, original_language = ?, genres = ?, countries = ?, directors = ?, cast_json = ?, crew_json = ?, poster = ?, backdrop = ?, logo = ?, palette = ?,
       meta_source = ?, wikidata_id = ?, updated_at = datetime('now')
     WHERE id = ?`).run(
-    source === 'tmdb' ? meta.tmdbId : null, matchStatus, score, meta.title, meta.originalTitle, meta.year, meta.releaseDate, meta.overview || null, meta.tagline || null,
+    source === 'tmdb' ? meta.tmdbId : null, matchStatus, score, fileTitle || meta.title, meta.originalTitle, meta.year, meta.releaseDate, meta.overview || null, meta.tagline || null,
     meta.runtime, meta.originalLanguage || null, JSON.stringify(meta.genres), JSON.stringify(meta.countries), JSON.stringify(meta.directors),
     JSON.stringify(meta.cast), JSON.stringify(meta.crew), json_(posterRef), json_(backdropRef), json_(logoRef), json_(palette),
     source, wikidataId, movieId,
