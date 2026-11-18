@@ -37,13 +37,27 @@ export function Img({ image, sizes, alt = '', className = '', eager = false, sty
   image: ImageRef; sizes: string; alt?: string; className?: string; eager?: boolean; style?: CSSProperties;
 }) {
   const [loaded, setLoaded] = useState(false);
+  // Image en échec (serveur arrêté, réseau coupé) : nouvel essai 3 s, 6 s… puis toutes les 30 s,
+  // et tout de suite au retour du réseau ou de l'onglet. Sans ça, l'aperçu flou restait pour de bon.
+  const [attempt, setAttempt] = useState(0);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    if (!failed) return;
+    const retry = () => { setFailed(false); setAttempt((a) => a + 1); };
+    const t = window.setTimeout(retry, Math.min(30_000, 3000 * 2 ** Math.min(attempt, 4)));
+    const onVisible = () => { if (document.visibilityState === 'visible') retry(); };
+    window.addEventListener('online', retry);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { clearTimeout(t); window.removeEventListener('online', retry); document.removeEventListener('visibilitychange', onVisible); };
+  }, [failed, attempt]);
+  const bust = (u: string) => (attempt ? u.replace(/\.webp(?= |$)/g, `.webp?r=${attempt}`) : u);
   const ratio = image.width / image.height;
   return (
     <span className={`img ${loaded ? 'is-loaded' : ''} ${className}`} style={style}>
       {image.blurhash && <Blurhash hash={image.blurhash} ratio={ratio} />}
       <img
-        src={imgUrl(image, image.widths[Math.min(1, image.widths.length - 1)])}
-        srcSet={srcSet(image)}
+        src={bust(imgUrl(image, image.widths[Math.min(1, image.widths.length - 1)]))}
+        srcSet={bust(srcSet(image))}
         sizes={sizes}
         width={image.width}
         height={image.height}
@@ -52,6 +66,7 @@ export function Img({ image, sizes, alt = '', className = '', eager = false, sty
         decoding="async"
         ref={(el) => { if (el?.complete && el.naturalWidth) setLoaded(true); }}
         onLoad={() => setLoaded(true)}
+        onError={() => setFailed(true)}
       />
     </span>
   );
