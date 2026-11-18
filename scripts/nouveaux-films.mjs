@@ -1,5 +1,6 @@
 // Nouveaux films : tout préparer pour le site, puis faire le bilan.
-//   node scripts/nouveaux-films.mjs                    sous-titres zippés, scan, attente des fiches, bilan
+//   node scripts/nouveaux-films.mjs                    sous-titres zippés (extraits, puis .zip rangés dans
+//                                                      Subtitles\Archives), scan, attente des fiches, bilan
 //   node scripts/nouveaux-films.mjs --bilan             bilan seulement
 //   node scripts/nouveaux-films.mjs --corriger <id> <Q…>  fiche Wikidata choisie à la main
 //   node scripts/nouveaux-films.mjs --chercher "<titre>"  candidats Wikidata (pour --corriger)
@@ -54,26 +55,39 @@ async function main() {
 // ---------- 1. Sous-titres livrés en .zip : extraits dans Subtitles\ ----------
 if (!args.includes('--bilan')) {
   const { libraryDirs } = await api('/api/settings');
-  let extracted = 0;
+  let extracted = 0, archived = 0;
   for (const dir of libraryDirs.filter((d) => fs.existsSync(d))) {
     const zips = [];
-    const walk = (d) => { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, e.name); if (e.isDirectory()) walk(p); else if (/\.zip$/i.test(e.name)) zips.push(p); } };
-    walk(dir);
     const target = path.join(dir, 'Subtitles');
+    const archives = path.join(target, 'Archives');
+    const walk = (d) => { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, e.name); if (e.isDirectory()) { if (p !== archives) walk(p); } else if (/\.zip$/i.test(e.name)) zips.push(p); } };
+    walk(dir);
     for (const zip of zips) {
-      let names;
-      try { names = execFileSync(TAR, ['-tf', zip], { encoding: 'utf8' }).split(/\r?\n/).filter((n) => SUB.test(n)); } catch { continue; }
-      const todo = names.filter((n) => !fs.existsSync(path.join(target, path.basename(n))));
-      if (!todo.length) continue;
+      // copie sous un nom simple : tar.exe n'ouvre pas les noms avec des caractères non latins (少林足球…)
       const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'cine-zip-'));
       try {
-        execFileSync(TAR, ['-xf', zip, '-C', tmp, ...todo]);
-        fs.mkdirSync(target, { recursive: true });
-        for (const n of todo) { fs.copyFileSync(path.join(tmp, n), path.join(target, path.basename(n))); extracted++; say(`Sous-titre extrait : ${path.basename(n)}  (de ${path.basename(zip)})`); }
+        const copy = path.join(tmp, 'a.zip');
+        let names;
+        try {
+          fs.copyFileSync(zip, copy);
+          names = execFileSync(TAR, ['-tf', copy], { encoding: 'utf8' }).split(/\r?\n/).filter((n) => SUB.test(n));
+        } catch { say(`Zip illisible : ${path.basename(zip)}`); continue; }
+        if (!names.length) continue; // pas un zip de sous-titres : on n'y touche pas
+        const todo = names.filter((n) => !fs.existsSync(path.join(target, path.basename(n))));
+        if (todo.length) {
+          execFileSync(TAR, ['-xf', copy, '-C', tmp, ...todo]);
+          fs.mkdirSync(target, { recursive: true });
+          for (const n of todo) { fs.copyFileSync(path.join(tmp, n), path.join(target, path.basename(n))); extracted++; say(`Sous-titre extrait : ${path.basename(n)}  (de ${path.basename(zip)})`); }
+        }
       } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+      // rangement : le .zip quitte le dossier des films (déplacé, jamais supprimé)
+      fs.mkdirSync(archives, { recursive: true });
+      const dest = path.join(archives, path.basename(zip));
+      if (!fs.existsSync(dest)) { fs.renameSync(zip, dest); archived++; }
     }
   }
   if (!extracted) say('Aucun sous-titre zippé à extraire.');
+  if (archived) say(`${archived} .zip rangé${archived > 1 ? 's' : ''} dans Subtitles\\Archives.`);
 
   // ---------- 2. Scan, puis attente des fiches ----------
   await post('/api/library/scan');
