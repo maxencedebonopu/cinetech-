@@ -73,6 +73,8 @@ export async function playbackRoutes(app: FastifyInstance) {
   app.post<{ Body: PlaybackPing }>('/api/playback/ping', async (req, reply): Promise<PingResponse | void> => {
     const s = getSession(req.body.sessionId);
     if (!s) return reply.code(404).send({ error: 'Session expirée' });
+    // Position hors du film (horodatage faux) : ignorée, sinon le film serait marqué « vu »
+    if (!(req.body.position >= 0 && req.body.position <= s.duration + 5)) return reply.code(422).send({ error: 'Position invalide' });
     const now = Date.now();
     const elapsed = Math.min(30, (now - s.lastAccess) / 1000);
     s.lastAccess = now;

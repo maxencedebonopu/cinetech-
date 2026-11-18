@@ -87,8 +87,9 @@ function Shell() {
       </Routes>
       {chrome && <BottomBar />}
       <Search />
-      <Vignette />
-      {settings?.grain !== false && <Grain />}
+      {/* Jamais par-dessus le film : l'image reste intacte, et la vidéo garde son affichage direct par la carte graphique */}
+      {!pathname.startsWith('/lecture') && <Vignette />}
+      {settings?.grain !== false && !pathname.startsWith('/lecture') && <Grain />}
     </>
   );
 }

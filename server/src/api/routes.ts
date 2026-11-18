@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import type { Health } from '@cine/shared';
 import { db, getSettings, updateSettings } from '../db.ts';
 import { listMovies, getMovieDetail, listOrphanSubtitles, updateUserData } from '../library/repo.ts';
-import { scan, getStatus, enrichMovie, enrichFromWiki, matchSubtitles, watch } from '../library/library.ts';
+import { scan, getStatus, enrichMovie, enrichFromWiki, matchSubtitles, watch, refreshPosters } from '../library/library.ts';
 import { externalToVtt, embeddedToVtt } from '../library/subtitles.ts';
 import { computeStats } from '../library/stats.ts';
 import { searchMovies, tmdbEnabled, tmdbKeyInfo, checkTmdbKey, setTmdbKey } from '../metadata/tmdb.ts';
@@ -56,6 +56,7 @@ export async function apiRoutes(app: FastifyInstance) {
     return getMovieDetail(id);
   });
 
+  app.post('/api/library/affiches', async () => refreshPosters());
   app.post('/api/library/scan', async () => { void scan(); return getStatus(); });
   app.get('/api/library/status', async () => getStatus());
 

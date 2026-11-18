@@ -166,8 +166,41 @@ async function synopsis(frPage: string | undefined, enPage: string | undefined):
   return '';
 }
 
-/** Affiche : propriété « affiche du film » (P3383) sur Commons, sinon l'image d'infobox de Wikipédia anglais. */
+// ---------- Affiche HD : Letterboxd ----------
+// Les affiches de Wikipédia sont des images non libres, réduites à ~250 px de large : floues à l'écran.
+// Letterboxd sert les mêmes affiches en 1000×1500 ; Wikidata donne l'identifiant Letterboxd (P6127)
+// ou, à défaut, TMDB (P4947), que Letterboxd sait aussi résoudre.
+const BROWSER = { 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36' };
+let lbLast = 0;
+async function letterboxdPoster(e: Entity): Promise<string | null> {
+  const slug = claims(e, 'P6127')[0]?.mainsnak.datavalue?.value as string | undefined;
+  const tmdb = claims(e, 'P4947')[0]?.mainsnak.datavalue?.value as string | undefined;
+  const page = slug ? `https://letterboxd.com/film/${encodeURIComponent(slug)}/` : tmdb ? `https://letterboxd.com/tmdb/${tmdb}/` : null;
+  if (!page) return null;
+  const wait = lbLast + 500 - Date.now(); // poli : une page à la fois, espacées
+  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+  lbLast = Date.now();
+  try {
+    const res = await fetch(page, { headers: BROWSER, signal: AbortSignal.timeout(12000) });
+    if (!res.ok) return null;
+    const img = /"image":"(https:\/\/a\.ltrbxd\.com\/resized\/[^"]+)"/.exec(await res.text())?.[1];
+    if (!img || img.includes('empty-poster')) return null;
+    return img.replace(/-0-\d+-0-\d+-crop/, '-0-1000-0-1500-crop');
+  } catch { return null; }
+}
+
+/** Affiches HD (Letterboxd) de films déjà identifiés : qid → URL (ou null). */
+export async function hdPosters(qids: string[]): Promise<Record<string, string | null>> {
+  const ents = await entities(qids, 'claims');
+  const out: Record<string, string | null> = {};
+  for (const q of qids) out[q] = ents[q] ? await letterboxdPoster(ents[q]) : null;
+  return out;
+}
+
+/** Affiche : Letterboxd en HD ; sinon « affiche du film » (P3383) sur Commons, sinon l'infobox de Wikipédia anglais. */
 async function posterUrl(e: Entity, enPage: string | undefined): Promise<string | null> {
+  const hd = await letterboxdPoster(e);
+  if (hd) return hd;
   const file = claims(e, 'P3383')[0]?.mainsnak.datavalue?.value as string | undefined;
   if (file) return `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(file)}?width=780`;
   if (!enPage) return null;

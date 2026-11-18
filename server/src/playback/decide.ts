@@ -42,7 +42,10 @@ export function decide(media: MediaInfo, caps: ClientCaps, opts: { quality: Qual
   const audioPlayable = !audio || (audio.codec === 'aac' && caps.audio.aac) || (audio.codec === 'mp3' && caps.audio.mp3);
 
   const hdr = !!v && v.hdr !== 'SDR';
-  const tonemap = hdr && !caps.hdr;
+  // HDR10 / HLG sur un écran SDR : un navigateur qui décode le codec convertit lui-même l'image en SDR
+  // (Chrome, Edge, Safari). La conversion par ffmpeg ne tenait que 1,5× le temps réel sur ce PC : à la
+  // moindre charge, la lecture calait. Elle reste pour Dolby Vision (profil 5 sans couche HDR10 lisible).
+  const tonemap = hdr && !caps.hdr && (v!.hdr === 'DV' || !videoSupported(v!.codec, caps));
   const vOk = !!v && videoSupported(v.codec, caps) && !tonemap;
 
   let mustTranscode = false;

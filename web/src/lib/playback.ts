@@ -41,11 +41,30 @@ export class Projection {
   private timer: number | null = null;
   private generation = 0;
   private stopped = false;
+  private recoveries = 0; // relances automatiques depuis le dernier segment chargé
   onPlan?: (p: PlaybackPlan) => void;
   onError?: (msg: string) => void;
   onWatched?: () => void;
 
-  constructor(private video: HTMLVideoElement, private movieId: number, public opts: StartOptions) {}
+  private lastGood = 0;  // dernière position plausible
+  private fixing = false;
+
+  constructor(private video: HTMLVideoElement, private movieId: number, public opts: StartOptions) {
+    video.addEventListener('timeupdate', () => this.guard());
+  }
+
+  /** Garde-fou : un horodatage faux dans un segment peut projeter la lecture hors du film (268 466 s…).
+   *  On revient alors au dernier moment plausible, sur un flux neuf. */
+  private guard() {
+    const p = this.plan;
+    if (!p || p.mode === 'direct') return;
+    const t = this.now();
+    if (t >= 0 && t <= p.duration + 5) { this.lastGood = t; return; }
+    if (this.fixing || this.stopped) return;
+    this.fixing = true;
+    const wasPlaying = !this.video.paused;
+    void this.start(Math.min(this.lastGood + 0.5, p.duration - 1)).then(() => { if (wasPlaying) this.video.play().catch(() => {}); }).finally(() => { this.fixing = false; });
+  }
 
   now() { return this.plan ? this.plan.offset + this.video.currentTime : 0; }
 
@@ -73,8 +92,27 @@ export class Projection {
       const { default: Hls } = await import('hls.js');
       if (gen !== this.generation || this.stopped) return;
       if (Hls.isSupported()) {
-        const hls = new Hls({ startPosition: 0, maxBufferLength: 30, backBufferLength: 60, manifestLoadingTimeOut: 30000, fragLoadingTimeOut: 40000 });
-        hls.on(Hls.Events.ERROR, (_e, d) => { if (d.fatal) this.onError?.(`Flux interrompu (${d.details})`); });
+        const hls = new Hls({
+          startPosition: 0,
+          // Une minute d'avance (deux au plus) : absorbe les creux du réseau, surtout à distance
+          maxBufferLength: 60, maxMaxBufferLength: 120, backBufferLength: 60,
+          // Le remux coupe sur les images-clés du fichier : deux images-clés collées donnent un segment
+          // d'une seule image (0,04 s). Avec la tolérance par défaut (0,25 s), hls.js le saute, laisse un trou
+          // et la lecture cale. Tolérance quasi nulle : aucun segment n'est sauté.
+          maxFragLookUpTolerance: 0.01,
+          manifestLoadingTimeOut: 30000, fragLoadingTimeOut: 40000, levelLoadingTimeOut: 30000,
+        });
+        hls.on(Hls.Events.FRAG_BUFFERED, () => { this.recoveries = 0; });
+        hls.on(Hls.Events.ERROR, (_e, d) => {
+          if (!d.fatal || gen !== this.generation) return;
+          // Avant d'abandonner : décodeur relancé, ou nouveau flux à la position courante (séance expirée…)
+          if (this.recoveries++ < 2) {
+            if (d.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
+            else { const wasPlaying = !v.paused; void this.start(this.now()).then(() => { if (wasPlaying) v.play().catch(() => {}); }); }
+            return;
+          }
+          this.onError?.(`Flux interrompu (${d.details})`);
+        });
         hls.loadSource(plan.url);
         hls.attachMedia(v);
         this.hls = hls;
@@ -92,6 +130,7 @@ export class Projection {
 
   async ping() {
     if (!this.plan) return;
+    if (this.now() > this.plan.duration + 5) return; // position impossible : jamais enregistrée
     try {
       const r = await post<PingResponse>('/api/playback/ping', { sessionId: this.plan.sessionId, position: this.now(), paused: this.video.paused });
       this.avail = { from: r.availableFrom, to: r.availableTo };

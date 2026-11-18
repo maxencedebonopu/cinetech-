@@ -99,6 +99,11 @@ if (!args.includes('--bilan')) {
     if (line !== last) { say(`Scan : ${line}`); last = line; }
     if (!s.scanning) break;
   }
+
+  // ---------- Affiches HD (Letterboxd) pour celles restées en basse définition ----------
+  const hd = await post('/api/library/affiches');
+  if (hd.updated.length) say(`Affiches passées en HD : ${hd.updated.join(', ')}`);
+  if (hd.missing.length) say(`Pas d'affiche HD trouvée : ${hd.missing.join(', ')}`);
 }
 
 // ---------- 3. Bilan ----------

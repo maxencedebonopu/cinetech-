@@ -10,7 +10,7 @@ import { probe } from './probe.ts';
 import { readExternal, detectLanguage } from './subtitles.ts';
 import { ffprobePath } from '../tools/ffmpeg.ts';
 import { tmdbEnabled, autoMatch, getMovie, type MovieMetadata } from '../metadata/tmdb.ts';
-import { wikiFind, wikiMovie, wikiImage } from '../metadata/wiki.ts';
+import { wikiFind, wikiMovie, wikiImage, hdPosters } from '../metadata/wiki.ts';
 import { fetchBuffer, storeImage, extractPalette } from '../metadata/images.ts';
 
 type Log = (msg: string) => void;
@@ -180,10 +180,11 @@ export async function enrichFromWiki(movieId: number, qid: string, matchStatus: 
 }
 
 async function store(movieId: number, meta: MovieMetadata, base: string, matchStatus: string, score: number | null, source: 'tmdb' | 'wiki', wikidataId: string | null = null) {
-  const download = source === 'wiki' ? wikiImage : fetchBuffer;
+  // Wikimédia passe par sa file (débit limité) ; TMDB et Letterboxd en direct
+  const download = (url: string) => (/wikimedia\.org|wikipedia\.org/.test(url) ? wikiImage(url) : fetchBuffer(url));
   const get = (url: string | null) => (url ? download(url).catch((e) => { log(`Image : ${(e as Error).message}`); return null; }) : null);
   const [poster, backdrop, logo] = await Promise.all([get(meta.posterUrl), get(meta.backdropUrl), get(meta.logoUrl)]);
-  const posterRef = poster ? await storeImage(poster, `${base}-poster`, 'poster') : null;
+  const posterRef = poster ? await storeImage(poster, `${base}-poster${meta.posterUrl?.includes('ltrbxd') ? '-hd' : ''}`, 'poster') : null;
   const backdropRef = backdrop ? await storeImage(backdrop, `${base}-backdrop`, 'backdrop') : null;
   const logoRef = logo ? await storeImage(logo, `${base}-logo`, 'logo') : null;
   const palette = poster ? await extractPalette(poster) : null;
@@ -201,6 +202,26 @@ async function store(movieId: number, meta: MovieMetadata, base: string, matchSt
   );
 }
 const json_ = (v: unknown) => (v ? JSON.stringify(v) : null);
+
+/** Remplace les affiches Wikipédia (≈ 250 px, floues) par celles de Letterboxd en 1000×1500.
+ *  Les films qui ont déjà une affiche HD sont sautés. */
+export async function refreshPosters() {
+  const rows = (db.prepare(`SELECT id, parsed_title, wikidata_id, poster FROM movies WHERE missing = 0 AND meta_source = 'wiki' AND wikidata_id IS NOT NULL`).all() as any[])
+    .filter((r) => !String(r.poster ?? '').includes('-hd"'));
+  const urls = rows.length ? await hdPosters(rows.map((r) => r.wikidata_id)) : {};
+  const updated: string[] = [], missing: string[] = [];
+  for (const r of rows) {
+    const url = urls[r.wikidata_id];
+    try {
+      if (!url) throw new Error('pas sur Letterboxd');
+      const buf = await fetchBuffer(url);
+      const ref = await storeImage(buf, `w${r.wikidata_id}-poster-hd`, 'poster');
+      db.prepare(`UPDATE movies SET poster = ?, palette = ?, updated_at = datetime('now') WHERE id = ?`).run(JSON.stringify(ref), JSON.stringify(await extractPalette(buf)), r.id);
+      updated.push(r.parsed_title);
+    } catch (e) { missing.push(r.parsed_title); log(`Affiche HD : ${r.parsed_title} : ${(e as Error).message}`); }
+  }
+  return { updated, missing };
+}
 
 async function fetchMetadata() {
   if (!tmdbEnabled()) return fetchWikiMetadata();

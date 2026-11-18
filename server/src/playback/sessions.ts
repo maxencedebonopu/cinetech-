@@ -10,7 +10,9 @@ import { decide, type Decision } from './decide.ts';
 
 const SEGMENT = 4;          // durée cible des segments (s)
 const KEEP_BEHIND = 300;    // segments conservés derrière la tête de lecture (s)
-const IDLE_TIMEOUT = 60_000;
+// Une séance survit à une pause ou à un passage en arrière-plan (téléphone verrouillé, autre appli) :
+// à 60 s, le retour dans la lecture tombait sur un flux supprimé.
+const IDLE_TIMEOUT = 10 * 60_000;
 
 export interface Session {
   id: string;
@@ -106,6 +108,30 @@ async function keyframeBefore(file: string, t: number): Promise<number> {
     } catch { /* fenêtre suivante */ }
   }
   return Math.max(0, t - 10);
+}
+
+/** Durée de segment pour un remux. Le muxer HLS coupe à la première image-clé après n × hls_time
+ *  (cumul depuis le début). Si les images-clés du fichier sont plus espacées que hls_time, il coupe à
+ *  CHAQUE image-clé, et deux images-clés collées (Memento, 973,139 s puis 973,181 s) donnent un segment
+ *  d'une seule image, à l'horodatage faux : hls.js calait puis sautait à 268 466 s.
+ *  Avec hls_time au-dessus de l'écart maximal entre images-clés, ces paires sont fusionnées. */
+const gopCache = new Map<string, number>();
+async function remuxSegmentTime(file: string, videoIndex: number): Promise<number> {
+  const hit = gopCache.get(file);
+  if (hit) return hit;
+  let gop = 0;
+  if (ffprobePath) {
+    try {
+      // Paquets seulement (pas de décodage) : les drapeaux K des 3 premières minutes
+      const out = await run(ffprobePath, ['-v', 'error', '-select_streams', String(videoIndex), '-read_intervals', '%+180',
+        '-show_entries', 'packet=pts_time,flags', '-of', 'csv=p=0', file], { timeoutMs: 20_000 });
+      const keys = out.toString().split(/\r?\n/).filter((l) => /,K/.test(l)).map((l) => parseFloat(l)).filter(Number.isFinite).sort((a, b) => a - b);
+      for (let i = 1; i < keys.length; i++) gop = Math.max(gop, keys[i] - keys[i - 1]);
+    } catch { /* valeur par défaut */ }
+  }
+  const t = Math.min(16, Math.max(SEGMENT, Math.ceil((gop || 10) + 1.5)));
+  gopCache.set(file, t);
+  return t;
 }
 
 /** Cadre des sous-titres image. ffprobe ne le connaît souvent pas pour les PGS : on déduit alors le cadre Blu-ray standard. */
@@ -205,7 +231,7 @@ async function buildArgs(file: string, media: MediaInfo, d: Decision, start: num
   }
 
   args.push('-sn', '-dn', '-map_metadata', '-1', '-map_chapters', '-1', ...FFMPEG_TAG, '-max_muxing_queue_size', '2048',
-    '-f', 'hls', '-hls_time', String(SEGMENT), '-hls_init_time', '2', '-hls_playlist_type', 'event', '-hls_list_size', '0',
+    '-f', 'hls', '-hls_time', String(d.mode === 'remux' ? await remuxSegmentTime(file, v.index) : SEGMENT), '-hls_init_time', '2', '-hls_playlist_type', 'event', '-hls_list_size', '0',
     '-hls_segment_type', 'fmp4', '-hls_fmp4_init_filename', 'init.mp4',
     // Chemins relatifs : ffmpeg tourne dans le dossier de la session (sinon init.mp4 atterrit dans le dossier courant)
     '-hls_segment_filename', 'seg%05d.m4s',
