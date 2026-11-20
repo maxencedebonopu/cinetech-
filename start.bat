@@ -29,5 +29,23 @@ if errorlevel 1 (
   exit /b 1
 )
 
-call npm.cmd start
-if errorlevel 1 pause
+rem Le serveur tourne en boucle : s'il s'arrête (plantage, erreur), il repart seul 5 s plus tard.
+rem Tout ce qu'il écrit va dans data\serveur.log, pour savoir après coup pourquoi il s'est arrêté.
+rem Fermer cette fenêtre arrête le serveur pour de bon.
+set /a RELANCES=0
+:serveur
+echo.
+echo   Cinémathèque en marche. Journal : data\serveur.log
+echo   Fermer cette fenêtre arrête le serveur.
+echo [%date% %time%] démarrage>> data\serveur.log
+call npm.cmd start >> data\serveur.log 2>&1
+echo [%date% %time%] arrêt, code %errorlevel%>> data\serveur.log
+set /a RELANCES+=1
+if %RELANCES% geq 20 (
+  echo   Le serveur s'est arrêté 20 fois de suite, voir data\serveur.log
+  pause
+  exit /b 1
+)
+echo   Le serveur s'est arrêté : relance dans 5 s (voir data\serveur.log).
+timeout /t 5 /nobreak >nul
+goto serveur
