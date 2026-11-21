@@ -51,7 +51,9 @@ function syncFiles(videos: string[], subs: string[]) {
   const seen = new Set<string>();
   const insert = db.prepare(`INSERT INTO movies (file_path, file_size, file_mtime, parsed_title, parsed_year, parsed_edition) VALUES (?, ?, ?, ?, ?, ?)`);
   const touch = db.prepare(`UPDATE movies SET file_size = ?, file_mtime = ?, missing = 0, updated_at = datetime('now') WHERE id = ?`);
-  const relocate = db.prepare(`UPDATE movies SET file_path = ?, file_mtime = ?, missing = 0, updated_at = datetime('now') WHERE id = ?`);
+  // Un fichier renommé change aussi le titre affiché (le titre vient toujours du nom de fichier)
+  const relocate = db.prepare(`UPDATE movies SET file_path = @path, file_mtime = @mtime, title = CASE WHEN title IS NULL OR title = parsed_title THEN @title ELSE title END,
+    parsed_title = @title, parsed_year = @year, parsed_edition = @edition, missing = 0, updated_at = datetime('now') WHERE id = @id`);
   let added = 0;
 
   db.transaction(() => {
@@ -65,8 +67,8 @@ function syncFiles(videos: string[], subs: string[]) {
       }
       // Fichier déplacé ou renommé : même taille qu'un film disparu → on garde la fiche et l'historique
       const moved = [...existing.values()].find((r) => !videos.includes(r.file_path) && r.file_size === st.size);
-      if (moved) { relocate.run(f, Math.floor(st.mtimeMs), moved.id); existing.delete(moved.file_path); continue; }
       const p = parseName(path.basename(f));
+      if (moved) { relocate.run({ path: f, mtime: Math.floor(st.mtimeMs), title: p.title, year: p.year, edition: p.edition, id: moved.id }); existing.delete(moved.file_path); continue; }
       insert.run(f, st.size, Math.floor(st.mtimeMs), p.title, p.year, p.edition);
       added++;
     }
